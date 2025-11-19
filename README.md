@@ -1,5 +1,3 @@
-# **PRIVATE CODE, REMOVE SENSITIVE INFO FROM CONFIG.H BEFORE MAKING PUBLIC**
-
 # Alarm Clock Project
 
 This is an ESP32 based alarm clock with RFID functionality. The idea behind
