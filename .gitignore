@@ -1,0 +1,24 @@
+# PlatformIO files
+.pio
+.vscode/
+
+# Build outputs
+*.bin
+*.hex
+*.elf
+*.map
+compile_commands.json
+
+# System files
+.DS_Store
+Thumbs.db
+*.tmp
+*.log
+
+# IDE files
+*.code-workspace
+.vs/
+
+# Sensitive and local files
+test/
+vault.h
