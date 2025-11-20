@@ -8,11 +8,7 @@ reason to go back to bed.
 
 --------------------------------------------------------------------------
 
-**© 2025 Michael Marsh. All rights reserved.**
-
-I worked really hard on this project. Unauthorized copying or commercial use is prohibited. Thanks!
-
-**[See COPYRIGHT file for complete terms and conditions.](./COPYRIGHT)**
+**[Please see LICENSE file for complete terms and conditions.](./LICENSE)**
 
 --------------------------------------------------------------------------
 
