@@ -3,7 +3,6 @@
 
 // Global alarm state
 bool alarmRinging = false;
-AlarmTime currentAlarm = {7, 0, true}; // Default: 7:00 AM, enabled
 
 // Initialize alarm system with DS3231 hardware alarm
 void initializeAlarm(RTC_DS3231 &rtc)
@@ -12,24 +11,27 @@ void initializeAlarm(RTC_DS3231 &rtc)
 
     rtc.clearAlarm(1);
     
-    // Configure DS3231 Alarm 1 for daily alarm at current alarm time
-    // DS3231_A1_Hour matches when hours and minutes match (daily alarm)
-    rtc.setAlarm1(DateTime(0, 0, 0, currentAlarm.hour, currentAlarm.minute, 0), DS3231_A1_Hour);
+    DateTime rtcAlarm = rtc.getAlarm1();
+    //If RTC-side alarm does not match currentAlarm values, update it to match
+    if (rtcAlarm.hour() != uSet.alarmTime.hour || rtcAlarm.minute() != uSet.alarmTime.minute)
+    {
+        rtc.setAlarm1(DateTime(0, 0, 0, uSet.alarmTime.hour, uSet.alarmTime.minute, 0), DS3231_A1_Hour);
+    }
 }
 
 // Check if DS3231 hardware alarm fired and trigger if needed
 bool checkAlarmTime(RTC_DS3231 &rtc, DFRobotDFPlayerMini &player)
 {
-    if (!currentAlarm.enabled)
+    if (!uSet.alarmTime.enabled)
         return false;
 
     if (rtc.alarmFired(1) && !alarmRinging)
     {
-        rtc.clearAlarm(1);
+        rtc.clearAlarm(1); //reset alarm flag
         
-        player.loop(userSettings.alarmSong);
+        player.loop(uSet.alarmSong);
         alarmRinging = true;
-        updateAlarmDisplay();
+        updateAlarmDisplay(); // Show alarm ringing status
         return true;
     }
 
@@ -44,41 +46,39 @@ void stopAlarm(DFRobotDFPlayerMini &player, RTC_DS3231 &rtc)
         player.stop();
         alarmRinging = false;
 
-        // Update display to show alarm stopped
-        updateAlarmDisplay();
+        updateAlarmDisplay(); // Show alarm stopped status
     }
 }
 
 // Set new alarm time and update DS3231 hardware alarm
-void setAlarmTime(RTC_DS3231 &rtc, uint8_t hour, uint8_t minute)
+void setAlarmTime(RTC_DS3231 &rtc, uint8_t hr, uint8_t min)
 {
-    currentAlarm.hour = hour;
-    currentAlarm.minute = minute;
+    uSet.alarmTime.hour = hr;
+    uSet.alarmTime.minute = min;
     
     // Update DS3231 Alarm 1 with new time
     rtc.clearAlarm(1);
-    rtc.setAlarm1(DateTime(0, 0, 0, hour, minute, 0), DS3231_A1_Hour);
+    rtc.setAlarm1(DateTime(0, 0, 0, hr, min, 0), DS3231_A1_Hour);
     
-    // Update display to show new alarm time
-    updateAlarmDisplay();
+    updateAlarmDisplay(); // Show updated alarm time
 }
 
 // Get current alarm time
 AlarmTime getAlarmTime()
 {
-    return currentAlarm;
+    return uSet.alarmTime;
 }
 
 // Enable or disable alarm
 void enableAlarm(RTC_DS3231 &rtc, bool enable)
 {
-    currentAlarm.enabled = enable;
+    uSet.alarmTime.enabled = enable;
     
     if (enable)
     {
         // Re-enable alarm in DS3231
         rtc.clearAlarm(1);
-        rtc.setAlarm1(DateTime(0, 0, 0, currentAlarm.hour, currentAlarm.minute, 0), DS3231_A1_Hour);
+        rtc.setAlarm1(DateTime(0, 0, 0, uSet.alarmTime.hour, uSet.alarmTime.minute, 0), DS3231_A1_Hour);
     }
     else
     {

@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h> // For uint8_t, uint16_t, uint32_t types
-#include "vault.h" //local sensitive consts (not included in repo)
+#include "vault.h" // Local sensitive consts (not included in repo)
+#include "alarm.h" // For nested AlarmTime struct
 
 // config.h
 // All global constants, user settings, and other program-wide variables defined here
@@ -66,10 +67,11 @@ extern uint8_t plrVolume; //speaker volume, 0-30 range
 //Includes two functions to load/save variables to/from flash
 
 struct UserSettings {
+    AlarmTime alarmTime;
 	uint8_t alarmSong;
 };
 
-extern UserSettings userSettings;
+extern UserSettings uSet;
 
 // Loads all user settings from Preferences (flash)
 void loadUserSettings();

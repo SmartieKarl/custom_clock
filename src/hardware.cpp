@@ -81,6 +81,7 @@ bool initializeRTC(TFT_eSPI &tft, RTC_DS3231 &rtc)
             tft.println("RTC lost power - time reset");
             tft.setTextColor(TFT_WHITE);
         }
+        initializeAlarm(rtc);
         return true;
     }
 }

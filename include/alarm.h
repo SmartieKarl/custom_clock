@@ -12,17 +12,16 @@
 
 
 // ---------- Alarm module ----------
-// Alarm time structure
+
 struct AlarmTime
-{
-    uint8_t hour;
-    uint8_t minute;
-    bool enabled;
-};
+    {
+        uint8_t hour; // hour
+        uint8_t minute; // minute
+        bool enabled; // is alarm enabled
+    };
 
 // Global alarm state (declared here, defined in alarm.cpp)
 extern bool alarmRinging;
-extern AlarmTime currentAlarm;
 
 // Alarm control functions
 void initializeAlarm(RTC_DS3231 &rtc);
