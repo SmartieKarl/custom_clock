@@ -10,9 +10,9 @@
 #include <RTClib.h>
 #include <TFT_eSPI.h>
 
-// Pure RFID module for ESP32 alarm clock project
+// rfid.h
 // Handles RFID card detection, card actions, and card management
-// Hardware initialization is handled by startup module
+// Hardware init handled in hardware module
 
 // Main RFID functions
 void checkRFIDCard(MFRC522 &rfid, DFRobotDFPlayerMini &player, RTC_DS3231 &rtc, WeatherData &weather);

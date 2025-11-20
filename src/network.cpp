@@ -102,7 +102,7 @@ bool fetchWeather(WeatherData &weather)
     url += WEATHER_COUNTRY;
     url += "&appid=";
     url += WEATHER_API_KEY;
-    url += "&units=metric";
+    url += "&units=imperial";
 
     HTTPClient http;
     http.begin(url);

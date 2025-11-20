@@ -1,32 +1,23 @@
 #pragma once
 
-#include "config.h"  // For brightness constants
-#include "network.h" // For WeatherData struct
+#include "config.h"
+#include "network.h"
 #include <Arduino.h>
 #include <RTClib.h>
 #include <TFT_eSPI.h>
 
-// Display module for alarm clock project
-// Sprite-based double-buffered display with ergonomic layout:
-// - Date: Top left corner
-// - Weather: Top right corner (simplified)
-// - Time: Large, centered
-// - Alarm: Bottom, simplified
+// Display module
+// Handles all display write functions and brightness control
 
-// Global variables (declared here, defined in display.cpp)
-extern bool alarmNeedsUpdate;
 
-// Display initialization functions
-void initDisplay(TFT_eSPI &tft);
 
-// Display update functions
-void updateDateDisplay(const DateTime &now);           // Update date in top left
-void updateTimeDisplay(const DateTime &now);           // Update large centered time
-void updateWeatherDisplay(const WeatherData &weather); // Update simplified weather
-void updateAlarmDisplay();                             // Update simplified alarm
+// Display area update functions
+void updateDateDisplay(const DateTime &now);
+void updateTimeDisplay(const DateTime &now);
+void updateWeatherDisplay(const WeatherData &weather);
+void updateAlarmDisplay();
 
 // Display utility functions
-void setAlarmUpdateFlag(bool needsUpdate);
 void flashScreen(uint16_t flashColor, int flashDuration = 150);
 
 // ========== BRIGHTNESS CONTROL FUNCTIONS ==========

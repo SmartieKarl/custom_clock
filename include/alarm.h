@@ -6,10 +6,13 @@
 #include <RTClib.h>
 #include <TFT_eSPI.h>
 
-// Alarm module for ESP32 alarm clock project
-// Handles alarm timing, triggering, snoozing, and time management
+// Clock module for ESP32 alarm clock project
+// Handles alarm functions
 
-// Alarm time structure for easy management
+
+
+// ---------- Alarm module ----------
+// Alarm time structure
 struct AlarmTime
 {
     uint8_t hour;
@@ -18,21 +21,18 @@ struct AlarmTime
 };
 
 // Global alarm state (declared here, defined in alarm.cpp)
-extern bool alarmTriggered;
-extern uint8_t currentAlarmIndex;
-extern AlarmTime alarmTimes[];
-extern const uint8_t NUM_ALARM_TIMES;
+extern bool alarmRinging;
+extern AlarmTime currentAlarm;
 
 // Alarm control functions
-void initializeAlarm();
-bool checkAlarmTime(const DateTime &now, DFRobotDFPlayerMini &player);
-void maintainAlarm(DFRobotDFPlayerMini &player);
+void initializeAlarm(RTC_DS3231 &rtc);
+bool checkAlarmTime(RTC_DS3231 &rtc, DFRobotDFPlayerMini &player);
 void stopAlarm(DFRobotDFPlayerMini &player, RTC_DS3231 &rtc);
-void resetAlarmFlag(const DateTime &now, DFRobotDFPlayerMini &player);
 
 // Alarm time management functions
-void cycleAlarmTime();
-AlarmTime getCurrentAlarmTime();
+void setAlarmTime(RTC_DS3231 &rtc, uint8_t hour, uint8_t minute);
+AlarmTime getAlarmTime();
+void enableAlarm(RTC_DS3231 &rtc, bool enable);
 
 // Alarm status functions
-bool isAlarmTriggered();
+bool isAlarmRinging();

@@ -1,7 +1,7 @@
 #include "hardware.h"
 #include "alarm.h"
 #include "config.h"
-#include "display.h" // Include display and brightness control
+#include "display.h"
 #include "network.h"
 #include <SPI.h>
 
@@ -34,7 +34,8 @@ bool initializeDisplay(TFT_eSPI &tft)
     tft.setCursor(0, 5);
     tft.setTextColor(TFT_WHITE);
     tft.setTextSize(1);
-    tft.println("Welcome to Michael's totally wicked custom clock!");
+    tft.println("- Michael's totally wicked custom clock v0.01 -");
+    tft.println("");
 
     return true;
 }
@@ -43,9 +44,6 @@ bool initializeDisplay(TFT_eSPI &tft)
 bool initializeDFPlayer(TFT_eSPI &tft, DFRobotDFPlayerMini &player, HardwareSerial &serial)
 {
     tft.println("Initializing DFPlayer...");
-
-    // Initialize serial communication for DFPlayer
-    serial.begin(9600, SERIAL_8N1, 16, 17);
 
     if (!player.begin(serial))
     {
@@ -56,9 +54,6 @@ bool initializeDFPlayer(TFT_eSPI &tft, DFRobotDFPlayerMini &player, HardwareSeri
     }
     else
     {
-        tft.setTextColor(TFT_GREEN);
-        tft.println("DFPlayer OK.");
-        tft.setTextColor(TFT_WHITE);
         player.volume(22); // Default volume 22
         return true;
     }
@@ -86,9 +81,6 @@ bool initializeRTC(TFT_eSPI &tft, RTC_DS3231 &rtc)
             tft.println("RTC lost power - time reset");
             tft.setTextColor(TFT_WHITE);
         }
-        tft.setTextColor(TFT_GREEN);
-        tft.println("RTC OK.");
-        tft.setTextColor(TFT_WHITE);
         return true;
     }
 }
@@ -118,17 +110,12 @@ bool initializeRFID(TFT_eSPI &tft, MFRC522 &rfid)
     if (version == 0x00 || version == 0xFF)
     {
         tft.setTextColor(TFT_RED);
-        tft.println("RFID failed!");
+        tft.println("RFID failed.");
         tft.setTextColor(TFT_WHITE);
         return false;
     }
-    else
-    {
-        tft.setTextColor(TFT_GREEN);
-        tft.println("RFID OK.");
-        tft.setTextColor(TFT_WHITE);
-        return true;
-    }
+
+    return true;
 }
 
 // Perform NTP synchronization
@@ -138,15 +125,10 @@ bool startupRTCSync(TFT_eSPI &tft)
 
     bool ntpResult = syncRTCFromNTP();
 
-    if (ntpResult)
+    if (!ntpResult)
     {
-        tft.setTextColor(TFT_GREEN);
-        tft.println("NTP sync successful.");
-    }
-    else
-    {
-        tft.setTextColor(TFT_RED);
-        tft.println("NTP sync failed.");
+        tft.setTextColor(TFT_YELLOW);
+        tft.println("RTC was unable to sync to NTP time.");
     }
     tft.setTextColor(TFT_WHITE);
 
@@ -160,15 +142,10 @@ bool startupWeatherFetch(TFT_eSPI &tft, WeatherData &weatherData)
 
     bool weatherResult = fetchWeather(weatherData);
 
-    if (weatherResult)
+    if (!weatherResult)
     {
-        tft.setTextColor(TFT_GREEN);
-        tft.println("Weather fetch successful.");
-    }
-    else
-    {
-        tft.setTextColor(TFT_RED);
-        tft.println("Weather fetch failed.");
+        tft.setTextColor(TFT_YELLOW);
+        tft.println("Weather data not obtained.");
     }
     tft.setTextColor(TFT_WHITE);
 
@@ -177,90 +154,30 @@ bool startupWeatherFetch(TFT_eSPI &tft, WeatherData &weatherData)
 
 // ========== MAIN HARDWARE INITIALIZATION ==========
 
-void initializeHardware()
+bool initializeHardware()
 {
-    // Initialize display
+    // Load persistent user settings from flash
+    loadUserSettings();
+
+    // Initialize display and show startup banner
     initializeDisplay(tft);
 
     // Initialize brightness control
     initializeBrightness();
 
     // Initialize hardware components
-    if (!initializeDFPlayer(tft, player, mySoftwareSerial))
-    {
-        startupOK = false;
-    }
-
-    if (!initializeRTC(tft, rtc))
-    {
-        startupOK = false;
-    }
-
-    if (!initializeRFID(tft, rfid))
-    {
-        startupOK = false;
-    }
-
-    // Try NTP sync
-    tft.println("Attempting NTP time sync...");
-    bool ntpSuccess = startupRTCSync(tft);
-    if (!ntpSuccess)
-    {
-        tft.setTextColor(TFT_YELLOW);
-        tft.println("NTP time sync failed!");
-        tft.setTextColor(TFT_WHITE);
-    }
-
-    // Try weather fetch
-    tft.println("Attempting weather fetch...");
-    bool weatherSuccess = startupWeatherFetch(tft, currentWeather);
-    if (!weatherSuccess)
-    {
-        tft.setTextColor(TFT_YELLOW);
-        tft.println("Weather fetch failed - continuing");
-        tft.setTextColor(TFT_WHITE);
-    }
-
-    // Report final network status
-    if (!ntpSuccess && !weatherSuccess)
-    {
-        tft.setTextColor(TFT_CYAN);
-        tft.println("Running in offline mode");
-        tft.setTextColor(TFT_WHITE);
-    }
-    else if (ntpSuccess && !weatherSuccess)
-    {
-        tft.setTextColor(TFT_CYAN);
-        tft.println("Time synced - weather unavailable");
-        tft.setTextColor(TFT_WHITE);
-    }
-    else if (!ntpSuccess && weatherSuccess)
-    {
-        tft.setTextColor(TFT_CYAN);
-        tft.println("Weather loaded - time not synced");
-        tft.setTextColor(TFT_WHITE);
-    }
-
-    // Complete startup
-    if (startupOK)
-    {
-        tft.setTextColor(TFT_GREEN);
-        tft.println("Startup complete!");
-        delay(2000);
-    }
-    else
+    if (!initializeDFPlayer(tft, player, mySoftwareSerial) ||
+        !initializeRTC(tft, rtc) ||
+        !initializeRFID(tft, rfid))
     {
         tft.setTextColor(TFT_RED);
-        tft.println("Hardware init failed!");
-        delay(5000);
+        tft.println("Oh no! Something isn't responding. Check hardware connections.");
+        tft.setTextColor(TFT_WHITE);
+        return false;
     }
 
-    // Initialize application modules
-    initializeAlarm();
-    initDisplay(tft);
-}
+    startupRTCSync(tft);
+    startupWeatherFetch(tft, currentWeather);
 
-bool hardwareStartupOK()
-{
-    return startupOK;
+    return true;
 }

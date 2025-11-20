@@ -38,20 +38,12 @@ void checkRFIDCard(MFRC522 &rfid, DFRobotDFPlayerMini &player, RTC_DS3231 &rtc, 
 void handleAlarmCard(DFRobotDFPlayerMini &player, RTC_DS3231 &rtc, WeatherData &weather)
 {
     // Check if alarm is currently playing
-    if (isAlarmTriggered())
+    if (isAlarmRinging())
     {
         // Visual feedback: RED flash for alarm stop
         flashScreen(TFT_RED, 200);
         stopAlarm(player, rtc);
     }
-    else
-    {
-        // Alarm not playing - cycle through alarm times
-        // Visual feedback: GREEN flash for settings change
-        flashScreen(TFT_GREEN, 150);
-        cycleAlarmTime();
-    }
-
     // Restore normal display
     restoreDisplay(rtc, weather);
 }
@@ -86,6 +78,7 @@ void restoreDisplay(RTC_DS3231 &rtc, const WeatherData &weather)
     delay(100); // Small delay to ensure flash screen completes
     DateTime now = rtc.now();
     updateTimeDisplay(now);
+    updateDateDisplay(now);
     updateWeatherDisplay(weather);
     updateAlarmDisplay();
 }
