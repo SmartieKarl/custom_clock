@@ -22,13 +22,11 @@ WeatherData currentWeather = {0, 0, 0, 0, "", "", false};
 // Hardware initialization status
 static bool startupOK = true;
 
-// ========== HARDWARE INITIALIZATION FUNCTIONS ==========
-// (Merged from startup.cpp for simpler file structure)
-
 // Initialize the ST7789 TFT display and show startup banner
 bool initializeDisplay(TFT_eSPI &tft)
 {
     tft.init();
+    setTFTInstance(&tft);
     tft.setRotation(1); // Landscape orientation
     tft.fillScreen(TFT_BLACK);
     tft.setCursor(0, 5);
@@ -43,6 +41,8 @@ bool initializeDisplay(TFT_eSPI &tft)
 // Initialize the DFPlayer Mini audio module
 bool initializeDFPlayer(TFT_eSPI &tft, DFRobotDFPlayerMini &player, HardwareSerial &serial)
 {
+    serial.begin(9600, SERIAL_8N1, 16, 17);  // RX=16, TX=17
+
     tft.println("Initializing DFPlayer...");
 
     if (!player.begin(serial))
@@ -62,7 +62,7 @@ bool initializeDFPlayer(TFT_eSPI &tft, DFRobotDFPlayerMini &player, HardwareSeri
 // Initialize the DS3231 RTC module
 bool initializeRTC(TFT_eSPI &tft, RTC_DS3231 &rtc)
 {
-    tft.println("Initializing RTC...");
+    tft.println("Initializing RTC...");\
 
     if (!rtc.begin())
     {
@@ -166,18 +166,30 @@ bool initializeHardware()
     initializeBrightness();
 
     // Initialize hardware components
-    if (!initializeDFPlayer(tft, player, mySoftwareSerial) ||
-        !initializeRTC(tft, rtc) ||
-        !initializeRFID(tft, rfid))
+    if (!initializeDFPlayer(tft, player, mySoftwareSerial))
     {
+        startupOK = false;
+    }
+    if (!initializeRTC(tft, rtc))
+    {
+        startupOK = false;
+    }
+    if (!initializeRFID(tft, rfid))
+    {
+        startupOK = false;
+    }
+    if (!startupOK)
+    {
+
+
         tft.setTextColor(TFT_RED);
-        tft.println("Oh no! Something isn't responding. Check hardware connections.");
+        tft.println("Oh no! Something isn't responding.");
+        tft.println("Check hardware connections.");
         tft.setTextColor(TFT_WHITE);
         return false;
     }
 
     startupRTCSync(tft);
     startupWeatherFetch(tft, currentWeather);
-
     return true;
 }

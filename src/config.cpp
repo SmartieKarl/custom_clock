@@ -10,7 +10,7 @@ uint8_t plrVolume = 20; // Default volume
 
 //Global non-volatile settings
 UserSettings userSettings = {
-	1 // alarmSong default
+	4 // alarmSong default
 };
 
 static Preferences prefs;

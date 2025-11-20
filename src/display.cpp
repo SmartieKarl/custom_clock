@@ -5,6 +5,11 @@
 // Global display state
 static TFT_eSPI *tftInstance = nullptr;
 
+// Assign the global TFT object to the display module
+void setTFTInstance(TFT_eSPI *instance) {
+    tftInstance = instance;
+}
+
 
 // Update time display
 void updateTimeDisplay(const DateTime &now)

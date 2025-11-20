@@ -17,6 +17,9 @@ void updateTimeDisplay(const DateTime &now);
 void updateWeatherDisplay(const WeatherData &weather);
 void updateAlarmDisplay();
 
+// Assign the TFT instance to the display module
+void setTFTInstance(TFT_eSPI *instance);
+
 // Display utility functions
 void flashScreen(uint16_t flashColor, int flashDuration = 150);
 

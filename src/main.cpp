@@ -21,26 +21,28 @@ extern WeatherData currentWeather;
 // ========== Entry Points for Arduino ==========
 void setup()
 {
-    DateTime now = rtc.now();
-
     // Initialize all hardware
     if (!initializeHardware())
     {
         tft.println("");
         tft.setTextColor(TFT_PINK);
-        tft.println("---------------Congrations, you broke it---------------");
+        tft.println("--------------Congrations, you broke it--------------");
         while (true)
         {
             delay(1000); // If you got here, check wiring?
         }
     }
 
-    delay(100);
+    delay(1000);
     
     // Clear screen
     tft.fillScreen(TFT_BLACK);
+
+    DateTime now = rtc.now();
     updateTimeDisplay(now);
     updateDateDisplay(now);
+    updateWeatherDisplay(currentWeather);
+    updateAlarmDisplay();
 }
 
 void loop()
