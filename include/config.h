@@ -67,7 +67,6 @@ extern uint8_t plrVolume; //speaker volume, 0-30 range
 //Includes two functions to load/save variables to/from flash
 
 struct UserSettings {
-    AlarmTime alarmTime;
 	uint8_t alarmSong;
 };
 

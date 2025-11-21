@@ -1,5 +1,8 @@
 #pragma once
 
+#define DS3231_ADDRESS 0x68
+#define DS3231_CONTROL 0x0E
+
 #include "config.h"
 #include <Arduino.h>
 #include <DFRobotDFPlayerMini.h>
@@ -29,9 +32,8 @@ bool checkAlarmTime(RTC_DS3231 &rtc, DFRobotDFPlayerMini &player);
 void stopAlarm(DFRobotDFPlayerMini &player, RTC_DS3231 &rtc);
 
 // Alarm time management functions
-void setAlarmTime(RTC_DS3231 &rtc, uint8_t hour, uint8_t minute);
-AlarmTime getAlarmTime();
-void enableAlarm(RTC_DS3231 &rtc, bool enable);
-
+AlarmTime getAlarm();
+void setAlarm(RTC_DS3231 &rtc, uint8_t hr, uint8_t min, bool enable);
 // Alarm status functions
+bool isAlarmEnabled();
 bool isAlarmRinging();

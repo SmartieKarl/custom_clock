@@ -65,7 +65,7 @@ void updateAlarmDisplay()
     if (!tftInstance)
         return;
 
-    AlarmTime alarm = getAlarmTime();
+    AlarmTime alarm = getAlarm();
     tftInstance->fillRect(0, 130, 120, 16, TFT_BLACK);
     tftInstance->setTextColor(TFT_MAGENTA, TFT_BLACK);
     tftInstance->setTextSize(1);
