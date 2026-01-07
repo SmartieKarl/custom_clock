@@ -1,40 +1,48 @@
 #pragma once
-
-#include "config.h"
-#include "network.h"
-#include <Arduino.h>
-#include <RTClib.h>
+#include "domain.h"
 #include <TFT_eSPI.h>
+#include <RTClib.h>
+#include <stdint.h>
 
-// Display module
-// Handles all display write functions and brightness control
+//Display module
+//Handles all display-related functions and TFT communication
+
+extern TFT_eSPI tft;
 
 
+//init
+bool initializeDisplay();
 
-// Display area update functions
-void updateDateDisplay(const DateTime &now);
+//helpers
+void drawCenteredString(const char text[],
+    uint16_t textColor,
+    uint16_t bgColor,
+    uint8_t font,
+    uint8_t size);
+void drawButtonLabel(uint8_t butNum,
+    const char label[],
+    uint16_t textColor,
+    uint16_t bgColor,
+    uint8_t font,
+    uint8_t size);
+void flashScreen(uint16_t flashColor, int flashDuration);
+
+//screen updaters
 void updateTimeDisplay(const DateTime &now);
+void updateDateDisplay(const DateTime &now);
 void updateWeatherDisplay(const WeatherData &weather);
 void updateAlarmDisplay();
 
-// Assign the TFT instance to the display module
-void setTFTInstance(TFT_eSPI *instance);
+//screen modes
+void drawMainScreen(const DateTime &now, const WeatherData &weather);
+void drawSettingsMenu(const char labCent[],
+    const char lab1[],
+    const char lab2[],
+    const char lab3[],
+    const char lab4[],
+    uint16_t textColor,
+    uint16_t bgColor);
 
-// Display utility functions
-void flashScreen(uint16_t flashColor, int flashDuration = 150);
+bool displayStartupStatus(bool rtcOK, bool playerOK, bool rfidOK);
 
-// ========== BRIGHTNESS CONTROL FUNCTIONS ==========
-
-// Brightness control functions
-void initializeBrightness();
-void setBrightness(uint8_t level);       // Set brightness 0-255 immediately
-void setTargetBrightness(uint8_t level); // Set target brightness for smooth fading
-void updateBrightnessFade();             // Update fade progress (call regularly)
-uint8_t getBrightness();                 // Get current brightness
-uint8_t getTargetBrightness();           // Get target brightness
-bool isBrightnessFading();               // Check if currently fading
-
-// Photoresistor-based ambient light control
-void updateAmbientBrightness();       // Update based on light sensor with fade
-uint16_t readLightSensor();           // Read raw photoresistor value
-uint8_t calculateAmbientBrightness(); // Convert light to brightness level
+void tftPrintLine(const char *message, uint16_t color);

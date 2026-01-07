@@ -1,84 +1,57 @@
 #include "rfid.h"
-#include "display.h"
+#include "config.h"
+#include <MFRC522.h>
 
-// Main RFID card checking function
-void checkRFIDCard(MFRC522 &rfid, DFRobotDFPlayerMini &player, RTC_DS3231 &rtc, WeatherData &weather)
+//Global RFID object
+MFRC522 rfid(RFID_CS_PIN, RFID_RST_PIN);
+
+//Initialize the MFRC522 RFID module
+bool initializeRFID()
 {
-    // Check if a new card is present
-    if (!rfid.PICC_IsNewCardPresent())
-    {
-        return; // No new card
-    }
+    // Initialize RFID module
+    SPI.begin(); // Initialize SPI bus
+    rfid.PCD_Init();
 
-    // Try to read the card serial
-    if (!rfid.PICC_ReadCardSerial())
-    {
-        return; // Failed to read
-    }
+    // Check if RFID module is responding
+    byte version = rfid.PCD_ReadRegister(MFRC522::VersionReg);
 
-    // Get card UID
-    String cardUID = getCardUID(rfid);
-
-    // Handle the card action directly
-    if (cardUID == MASTER_CARD_UID)
+    if (version == 0x00 || version == 0xFF)
     {
-        handleAlarmCard(player, rtc, weather);
+        return false;
     }
-    else
-    {
-        handleUnknownCard(cardUID, rtc, weather);
-    }
-
-    // Halt the card and stop encryption
-    rfid.PICC_HaltA();
-    rfid.PCD_StopCrypto1();
+    return true;
 }
 
-// Handle alarm card actions
-void handleAlarmCard(DFRobotDFPlayerMini &player, RTC_DS3231 &rtc, WeatherData &weather)
+//Main RFID card checking function
+RFIDResult rfidCheckCard()
 {
-    // Check if alarm is currently playing
-    if (isAlarmRinging())
+    if (!rfid.PICC_IsNewCardPresent() ||
+        !rfid.PICC_ReadCardSerial())
     {
-        // Visual feedback: RED flash for alarm stop
-        flashScreen(TFT_RED, 200);
-        stopAlarm(player, rtc);
+        return {RFIDEvent::NONE, ""};
     }
-    // Restore normal display
-    restoreDisplay(rtc, weather);
+
+    String uid = getCardUID();
+
+    if (uid == ALARM_CARD_UID)
+        return {RFIDEvent::ALARM_CARD, uid};
+
+    return {RFIDEvent::UNKNOWN_CARD, uid};
 }
 
-// Handle unknown cards
-void handleUnknownCard(const String &cardUID, RTC_DS3231 &rtc, WeatherData &weather)
-{
-    // Visual feedback: YELLOW flash for unknown card
-    flashScreen(TFT_YELLOW, 100);
 
-    // Restore display
-    restoreDisplay(rtc, weather);
-}
-
-// Get card UID as formatted string
-String getCardUID(MFRC522 &rfid)
+//Get card UID as formatted string
+String getCardUID()
 {
     String cardUID = "";
-    for (byte i = 0; i < rfid.uid.size; i++)
+    byte uidLen = rfid.uid.size;
+    if (uidLen == 0 || uidLen > 10) return ""; // Defensive: avoid out-of-bounds
+    for (byte i = 0; i < uidLen; i++)
     {
         if (rfid.uid.uidByte[i] < 0x10)
-            cardUID += "0"; // Add leading zero
+            cardUID += "0"; //Add leading zero
         cardUID += String(rfid.uid.uidByte[i], HEX);
     }
     cardUID.toUpperCase();
     return cardUID;
-}
-
-// Restore normal display after card actions
-void restoreDisplay(RTC_DS3231 &rtc, const WeatherData &weather)
-{
-    delay(100); // Small delay to ensure flash screen completes
-    DateTime now = rtc.now();
-    updateTimeDisplay(now);
-    updateDateDisplay(now);
-    updateWeatherDisplay(weather);
-    updateAlarmDisplay();
 }

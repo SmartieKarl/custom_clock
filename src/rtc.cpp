@@ -1,14 +1,80 @@
-#include "alarm.h"
-#include "display.h" // Include display and brightness control for alarm
+#include "rtc.h"
+#include "config.h"
+#include "network.h"
+#include "display.h"
 #include <Wire.h> // To read DS3231 control register
 
-// Global alarm state
-AlarmTime currentAlarm = {0, 0, false}; //default alarm settings, alarm @midnight, disabled
-bool alarmRinging = false;
+//Global RTC object
+RTC_DS3231 rtc;
+
+//Global alarm variables
+static bool alarmRinging = false;
+AlarmTime currentAlarm = {7, 0, false};
+
+
+// Initialize the DS3231 RTC module
+bool initializeRTC()
+{
+    if (!rtc.begin())
+    {
+        return false;
+    }
+
+    initializeRTCAlarm();
+    if (rtc.lostPower())
+    {
+        rtc.adjust(DateTime(0, 1, 1, 0, 0, 0));
+    }
+    return true;
+}
+
+//synchronizes RTC time from NTP server
+bool syncRTCFromNTP()
+{
+    if (!startWiFiSession())
+        return false;
+
+    configTzTime(TIME_ZONE, "pool.ntp.org", "time.nist.gov");
+
+    struct tm timeinfo = {};
+    unsigned long start = millis();
+    const unsigned long ntpTimeout = 10000;
+
+    bool gotTime = false;
+    while (millis() - start < ntpTimeout)
+    {
+        if (getLocalTime(&timeinfo))
+        {
+            gotTime = true;
+            break;
+        }
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
+
+    if (!gotTime)
+    {
+        endWiFiSession();
+        return false;
+    }
+
+    DateTime dt(
+        timeinfo.tm_year + 1900,
+        timeinfo.tm_mon + 1,
+        timeinfo.tm_mday,
+        timeinfo.tm_hour,
+        timeinfo.tm_min,
+        timeinfo.tm_sec
+    );
+
+    rtc.adjust(dt);
+
+    endWiFiSession();
+    return true;
+}
 
 // Initialize alarm system with DS3231 hardware alarm
 // Only alarm 1 is used in this implementation
-void initializeAlarm(RTC_DS3231 &rtc)
+void initializeRTCAlarm()
 {
     alarmRinging = false;
 
@@ -31,7 +97,7 @@ void initializeAlarm(RTC_DS3231 &rtc)
 }
 
 // Check if DS3231 hardware alarm fired and trigger if needed
-bool checkAlarmTime(RTC_DS3231 &rtc, DFRobotDFPlayerMini &player)
+bool checkIfAlarmTime()
 {
     if (!currentAlarm.enabled)
         return false;
@@ -40,8 +106,8 @@ bool checkAlarmTime(RTC_DS3231 &rtc, DFRobotDFPlayerMini &player)
     {
         rtc.clearAlarm(1); //reset alarm flag
         
-        player.loop(uSet.alarmSong);
-        alarmRinging = true;
+        // player.loop(uSet.alarmSong);
+        setAlarmRinging(true);
         updateAlarmDisplay(); // Show alarm ringing status
         return true;
     }
@@ -49,26 +115,8 @@ bool checkAlarmTime(RTC_DS3231 &rtc, DFRobotDFPlayerMini &player)
     return false;
 }
 
-// Stop the alarm
-void stopAlarm(DFRobotDFPlayerMini &player, RTC_DS3231 &rtc)
-{
-    if (alarmRinging)
-    {
-        player.stop();
-        alarmRinging = false;
-
-        updateAlarmDisplay(); // Show alarm stopped status
-    }
-}
-
-// Get current alarm info
-AlarmTime getAlarm()
-{
-    return currentAlarm;
-}
-
 // Enable or disable alarm
-void setAlarm(RTC_DS3231 &rtc, uint8_t hr, uint8_t min, bool enable)
+void setAlarm(uint8_t hr, uint8_t min, bool enable)
 {
     currentAlarm.hour = hr;
     currentAlarm.minute = min;
@@ -93,7 +141,8 @@ void setAlarm(RTC_DS3231 &rtc, uint8_t hr, uint8_t min, bool enable)
 
 // Read DS3231 control register to check alarm enable status.
 //returns alarm 1 enable state
-bool isAlarmEnabled() {
+bool isAlarmEnabled()
+{
     Wire.beginTransmission(DS3231_ADDRESS);
     Wire.write(DS3231_CONTROL);
     Wire.endTransmission(false);
@@ -102,7 +151,24 @@ bool isAlarmEnabled() {
     return ctrl & 0x01; // Bit 0: Alarm 1 enabled
 }
 
-bool isAlarmRinging()
+//Returns alarm ringing state
+bool getAlarmRinging()
 {
     return alarmRinging;
+}
+
+void setAlarmRinging(bool ringing)
+{
+    alarmRinging = ringing;
+}
+
+// Returns current alarm settings
+AlarmTime getAlarm()
+{
+    return currentAlarm;
+}
+
+DateTime getNow()
+{
+    return rtc.now();
 }

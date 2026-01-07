@@ -32,8 +32,8 @@ reason to go back to bed.
 | TFT Pin | ESP32 Pin |
 |---------|-----------|
 | CS      | GPIO15    |
-| DC      | GPIO2     |
 | RST     | GPIO4     |
+| DC      | GPIO2     |
 | MOSI    | GPIO23    |
 | SCLK    | GPIO18    |
 | LED     | GPIO26    |
@@ -64,15 +64,25 @@ reason to go back to bed.
 
 ## Other wiring
 
+**Buttons**
+There are four simple tactile buttons in use, they all use ESP32's
+internal pull-up resistors:
+- Button 1 (screen top left): GPIO14 -> button1 -> GND 
+- Button 2 (screen top right): GPIO27 -> button2 -> GND
+- Button 3 (screen bottom left): GPIO33 -> button3 -> GND
+- Button 4 (screen bottom right): GPIO32 -> button4 -> GND
+
 **DFPlayer mini voltage divider**
 - So the DFPlayer's TX pin doesn't send 5v signals back to GPIO16 (bad)
-- TX -> 1kΩ resistor -> GPIO16 -> 2.2kΩ resistor -> GND
+- TX -> 1kΩ resistor --> GPIO16
+                      |
+                      -> 2.2kΩ resistor -> GND
 
 **Photoresistor Circuit:**
 - For auto-brightness functions
-- 3.3v -> photoresistor -> GPIO34 -> 4.7kΩ resistor -> GND
-
-
+- 3.3v -> photoresistor -> GPIO34
+                        |
+                        -> 4.7kΩ resistor -> GND
 
 ### Power Supply
 - **ESP32 Module:** 5v DC (regulated to 3.3v on-board)

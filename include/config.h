@@ -1,11 +1,14 @@
 #pragma once
-#include <stdint.h> // For uint8_t, uint16_t, uint32_t types
-#include "vault.h" // Local sensitive consts (not included in repo)
-#include "alarm.h" // For nested AlarmTime struct
+#include "vault.h"
+#include <stdint.h>
+#include <TFT_eSPI.h>
 
 // config.h
-// All global constants, user settings, and other program-wide variables defined here
+// All global constants, settings, etc defined here
 
+//for DS3231 control register access (writing alarms)
+#define DS3231_ADDRESS 0x68
+#define DS3231_CONTROL 0x0E
 
 
 // ========== HARDWARE PINS ==========
@@ -13,6 +16,12 @@
 constexpr uint8_t RFID_CS_PIN = 5;    // SDA/SS pin for RFID
 constexpr uint8_t RFID_RST_PIN = 25;  // Reset pin for RFID
 constexpr uint8_t RFID_MISO_PIN = 19; // MISO pin for RFID
+
+//Control button pins
+constexpr uint8_t BUTTON_1_PIN = 14; // top left
+constexpr uint8_t BUTTON_2_PIN = 27; // top right
+constexpr uint8_t BUTTON_3_PIN = 33; // bottom left
+constexpr uint8_t BUTTON_4_PIN = 32; // bottom right
 
 // MOSI (23) and SCK (18) are shared with TFT display
 // TFT display pins defined in User_Setup.h (/include/User_Setup.h)
@@ -26,11 +35,15 @@ constexpr uint8_t PHOTORESISTOR_PIN = 34; // ADC pin for ambient light sensor
 
 
 // ========== SYSTEM TIMING CONSTANTS ==========
-constexpr uint16_t LOOP_DELAY = 100; // Loop delay so things don't explode (DON'T SET TO 0)
+constexpr uint16_t LOOP_DELAY = 50; // Loop delay so things don't explode (DON'T SET TO 0)
 
 
 
 // ========== DISPLAY CONSTANTS ==========
+
+//Systemwide default colors
+constexpr uint16_t BACKGROUND_COLOR = TFT_BLACK;
+constexpr uint16_t TEXT_COLOR = TFT_WHITE;
 
 // PWM channel and frequency settings
 static const uint8_t PWM_CHANNEL = 0;       // PWM channel (0-15 available)
@@ -57,28 +70,9 @@ constexpr uint8_t BRIGHTNESS_CHANGE_THRESHOLD = 15; // Minimum change in brightn
 
 // ========== USER SETTINGS ==========
 
-// ---------- Volatile Settings ----------
-//global, can be changed during runtime but do not persist between power cycles.
-extern uint8_t plrVolume; //speaker volume, 0-30 range
-
-
 // ---------- Non-volatile settings ----------
 //can be changed during runtime and persist between power cycles.
 //Includes two functions to load/save variables to/from flash
-
-struct UserSettings {
-	uint8_t alarmSong;
-};
-
-extern UserSettings uSet;
-
-// Loads all user settings from Preferences (flash)
-void loadUserSettings();
-
-// Saves all user settings to Preferences (flash)
-void saveUserSettings();
-
-
 
 
 
@@ -100,5 +94,5 @@ constexpr const char *WEATHER_COUNTRY = "US";
 
 // ========== RFID CONSTANTS ==========
 // Master NFC tag UID
-constexpr const char *MASTER_CARD_UID = "UID_here";
+constexpr const char *ALARM_CARD_UID = "UID_here";
 */

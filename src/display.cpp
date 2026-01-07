@@ -1,252 +1,232 @@
 #include "display.h"
-#include "alarm.h"
 #include "config.h"
+#include "rtc.h"
 
-// Global display state
-static TFT_eSPI *tftInstance = nullptr;
+//global TFT display object
+TFT_eSPI tft = TFT_eSPI();
 
-// Assign the global TFT object to the display module
-void setTFTInstance(TFT_eSPI *instance) {
-    tftInstance = instance;
+
+//initialize the ST7789 TFT display and show startup banner
+bool initializeDisplay()
+{
+    tft.init();
+    tft.setRotation(1); //landscape orientation
+    tft.fillScreen(BACKGROUND_COLOR);
+    tft.setCursor(0, 5);
+    tft.setTextColor(TEXT_COLOR);
+    tft.setTextSize(1);
+    tft.println("- Michael's totally wicked custom clock v0.01 -\n");
+
+    return true;
 }
 
-
-// Update time display
-void updateTimeDisplay(const DateTime &now)
+//draws given string centered on the display
+void drawCenteredString(const char text[],
+    uint16_t textColor = TEXT_COLOR,
+    uint16_t bgColor = BACKGROUND_COLOR,
+    uint8_t font = 1,
+    uint8_t size = 1)
 {
-    if (!tftInstance)
-        return;
-
-    tftInstance->fillRect(0, 40, 90, 16, TFT_BLACK);
-    tftInstance->setTextColor(TFT_WHITE, TFT_BLACK);
-    tftInstance->setTextSize(2);
-    tftInstance->setCursor(2, 40);
-    char buf[12];
-    snprintf(buf, sizeof(buf), "%02d:%02d:%02d", now.hour(), now.minute(), now.second());
-    tftInstance->print(buf);
+    tft.setTextColor(textColor, bgColor);
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextFont(font);
+    tft.setTextSize(size);
+    tft.drawString(text, tft.width() / 2, tft.height() / 2);
+    tft.setTextDatum(TL_DATUM); // Reset to default datum
 }
 
-// Update date display
-void updateDateDisplay(const DateTime &now)
+//draws label of given message for given button. Recommend font 1, size 2
+void drawButtonLabel(uint8_t butNum,
+    const char label[],
+    uint16_t textColor = TEXT_COLOR,
+    uint16_t bgColor = BACKGROUND_COLOR,
+    uint8_t font = 1,
+    uint8_t size = 2)
 {
-    if (!tftInstance)
-        return;
+    uint8_t x = 0;
+    uint8_t y = 0;
 
-    tftInstance->fillRect(0, 20, 90, 16, TFT_BLACK);
-    tftInstance->setTextColor(TFT_YELLOW, TFT_BLACK);
-    tftInstance->setTextSize(1);
-    tftInstance->setCursor(2, 20);
-    char buf[16];
-    snprintf(buf, sizeof(buf), "%02d/%02d/%04d", now.month(), now.day(), now.year());
-    tftInstance->print(buf);
+    switch (butNum)
+    {
+        case 1:
+            tft.setTextDatum(TL_DATUM);
+            x = 12;
+            y = 16;
+            break;
+        case 2:
+            tft.setTextDatum(TR_DATUM);
+            x = tft.width() - 12;
+            y = 16;
+            break;
+        case 3:
+            tft.setTextDatum(BL_DATUM);
+            x = 12;
+            y = tft.height() - 16;
+            break;
+        case 4:
+            tft.setTextDatum(BR_DATUM);
+            x = tft.width() - 12;
+            y = tft.height() - 16;
+            break;
+        default:
+            return; //butNum was not valid
+    }
+
+    tft.setTextFont(font);
+    tft.setTextSize(size);
+    tft.setTextColor(textColor, bgColor);
+    tft.drawString(label, x, y);
+    tft.setTextDatum(TL_DATUM); // Reset to default datum
 }
 
-// Update weather display
-void updateWeatherDisplay(const WeatherData &weather)
+//flashes screen with color for set duration.
+void flashScreen(uint16_t flashColor, int flashDuration = 150)
 {
-    if (!tftInstance)
-        return;
+    
 
-    tftInstance->fillRect(120, 80, 120, 32, TFT_BLACK);
-    tftInstance->setTextColor(TFT_CYAN, TFT_BLACK);
-    tftInstance->setTextSize(1);
-    tftInstance->setCursor(122, 80);
-    char buf[32];
-    snprintf(buf, sizeof(buf), "Temp: %dF", (int)weather.temperature);
-    tftInstance->println(buf);
-    tftInstance->setCursor(122, 96);
-    snprintf(buf, sizeof(buf), "Humidity: %d%%", weather.humidity);
-    tftInstance->println(buf);
-}
-
-// Update alarm display
-void updateAlarmDisplay()
-{
-    if (!tftInstance)
-        return;
-
-    AlarmTime alarm = getAlarm();
-    tftInstance->fillRect(0, 130, 120, 16, TFT_BLACK);
-    tftInstance->setTextColor(TFT_MAGENTA, TFT_BLACK);
-    tftInstance->setTextSize(1);
-    tftInstance->setCursor(2, 130);
-    char buf[32];
-    snprintf(buf, sizeof(buf), "Alarm: %02d:%02d %s", alarm.hour, alarm.minute, isAlarmRinging() ? "RINGING" : "SET");
-    tftInstance->print(buf);
-}
-
-// Flash screen with color for set duration.
-void flashScreen(uint16_t flashColor, int flashDuration)
-{
-    if (!tftInstance)
-        return;
-
-    tftInstance->fillScreen(flashColor);
+    tft.fillScreen(flashColor);
     delay(flashDuration);
-    tftInstance->fillScreen(TFT_BLACK);
+    tft.fillScreen(BACKGROUND_COLOR);
     delay(50);
 }
 
-// ========== BRIGHTNESS CONTROL FUNCTIONS ==========
-//ChatGPT wrote this part, but
-// 1) it works and
-// 2) I don't know how to write this myself
-
-
-// Current brightness state
-static uint8_t currentBrightness = BRIGHTNESS_MAX; // Start at max, will auto-adjust in setup
-static uint16_t lastLightReading = 0;              // For hysteresis
-static uint8_t targetBrightness = BRIGHTNESS_MAX;  // Target brightness for fading
-static unsigned long lastFadeUpdate = 0;           // Timing for fade steps
-
-// Initialize PWM for brightness control
-void initializeBrightness()
+//updates time display
+void updateTimeDisplay(const DateTime &now)
 {
-    // Configure PWM channel
-    ledcSetup(PWM_CHANNEL, PWM_FREQUENCY, PWM_RESOLUTION);
-
-    // Attach pin to PWM channel
-    ledcAttachPin(TFT_LED_PIN, PWM_CHANNEL);
-
-    // Initialize photoresistor pin (ADC)
-    pinMode(PHOTORESISTOR_PIN, INPUT);
-
-    // Start at 100% brightness for setup - loop() will adjust to ambient automatically
-    setBrightness(BRIGHTNESS_MAX);
-
-    // Read initial light for debugging
-    uint16_t initialLight = readLightSensor();
+    char buf[12];
+    snprintf(buf, sizeof(buf), "%02d:%02d:%02d", now.hour(), now.minute(), now.second());
+    drawCenteredString(buf, TEXT_COLOR, BACKGROUND_COLOR, 7, 1);
 }
 
-// Set brightness level (0-255) - immediate change
-void setBrightness(uint8_t level)
+//updates date display
+void updateDateDisplay(const DateTime &now)
 {
-    if (level < BRIGHTNESS_MIN && level > 0)
+    
+
+    tft.fillRect(0, 20, 90, 16, BACKGROUND_COLOR);
+    tft.setTextColor(TEXT_COLOR, BACKGROUND_COLOR);
+    tft.setTextFont(1);
+    tft.setTextSize(1);
+    tft.setCursor(2, 20);
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%02d/%02d/%04d", now.month(), now.day(), now.year());
+    tft.print(buf);
+}
+
+//updates weather display
+void updateWeatherDisplay(const WeatherData &weather)
+{
+    
+
+    tft.fillRect(0, 208, 120, 32, BACKGROUND_COLOR);
+    tft.setTextColor(TEXT_COLOR, BACKGROUND_COLOR);
+    tft.setTextFont(1);
+    tft.setTextSize(1);
+    tft.setCursor(2, 208);
+    char buf[32];
+    snprintf(buf, sizeof(buf), "Temp: %dF", (int)weather.temperature);
+    tft.println(buf);
+    tft.setCursor(2, 224);
+    snprintf(buf, sizeof(buf), "Humidity: %d%%", weather.humidity);
+    tft.println(buf);
+}
+
+//updates alarm display
+void updateAlarmDisplay()
+{
+    AlarmTime alarm = getAlarm();
+    bool isRinging = getAlarmRinging();
+
+    tft.setTextColor(TEXT_COLOR, BACKGROUND_COLOR);
+    tft.setTextFont(1);
+    tft.setTextSize(1);
+    tft.setTextDatum(BR_DATUM);
+
+    if (alarm.enabled)
     {
-        level = BRIGHTNESS_MIN;
-    }
-
-    currentBrightness = level;
-    targetBrightness = level; // Also update target to prevent conflicts
-    ledcWrite(PWM_CHANNEL, level);
-}
-
-// Set target brightness for smooth fading
-void setTargetBrightness(uint8_t level)
-{
-    if (level < BRIGHTNESS_MIN && level > 0)
-    {
-        level = BRIGHTNESS_MIN;
-    }
-
-    targetBrightness = level;
-}
-
-// Update fade progress
-void updateBrightnessFade()
-{
-    unsigned long currentTime = millis();
-
-    // Only update fade if enough time has passed and we need to change
-    if (currentTime - lastFadeUpdate >= FADE_STEP_DELAY && currentBrightness != targetBrightness)
-    {
-
-        // Determine fade direction and step size
-        if (currentBrightness < targetBrightness)
-        {
-            // Fade up
-            uint8_t difference = targetBrightness - currentBrightness;
-            uint8_t step = min(FADE_STEP_SIZE, difference);
-            currentBrightness += step;
-        }
-        else
-        {
-            // Fade down
-            uint8_t difference = currentBrightness - targetBrightness;
-            uint8_t step = min(FADE_STEP_SIZE, difference);
-            currentBrightness -= step;
-        }
-
-        // Apply the new brightness
-        ledcWrite(PWM_CHANNEL, currentBrightness);
-        lastFadeUpdate = currentTime;
-    }
-}
-
-// Get current brightness level
-uint8_t getBrightness()
-{
-    return currentBrightness;
-}
-
-// Get target brightness level
-uint8_t getTargetBrightness()
-{
-    return targetBrightness;
-}
-
-// Check if brightness is currently fading
-bool isBrightnessFading()
-{
-    return currentBrightness != targetBrightness;
-}
-
-// Read photoresistor value (0-4095 on ESP32)
-uint16_t readLightSensor()
-{
-    return analogRead(PHOTORESISTOR_PIN);
-}
-
-// Calculate brightness based on ambient light
-uint8_t calculateAmbientBrightness()
-{
-    uint16_t lightLevel = readLightSensor();
-
-    // Apply hysteresis to prevent flickering
-    if (abs(lightLevel - lastLightReading) < LIGHT_HYSTERESIS)
-    {
-        lightLevel = lastLightReading; // Use previous reading if change is small
+        char buf[32];
+        snprintf(buf, sizeof(buf), "Alarm: %02d:%02d %s",
+                 alarm.hour, alarm.minute,
+                 isRinging ? "RINGING" : "SET");
+        tft.drawString(buf, 314, 232);
     }
     else
     {
-        lastLightReading = lightLevel;
+        tft.drawString("   Alarm not set", 314, 232);
     }
 
-    // Map light sensor reading to brightness level
-    // Clamp to min/max range first
-    if (lightLevel < LIGHT_SENSOR_MIN)
-        lightLevel = LIGHT_SENSOR_MIN;
-    if (lightLevel > LIGHT_SENSOR_MAX)
-        lightLevel = LIGHT_SENSOR_MAX;
-
-    // Map to brightness range (inverted: less light = less brightness)
-    uint8_t brightness = map(lightLevel, LIGHT_SENSOR_MIN, LIGHT_SENSOR_MAX,
-                             BRIGHTNESS_MIN, BRIGHTNESS_MAX);
-
-    return brightness;
+    tft.setTextDatum(TL_DATUM);
 }
 
-// Update brightness based on ambient light with smooth fading
-void updateAmbientBrightness()
+//restores main screen display state
+void drawMainScreen(const DateTime &now, const WeatherData &weather)
 {
-    static unsigned long lastUpdate = 0;
-    unsigned long currentTime = millis();
+    delay(100);
+    tft.fillScreen(BACKGROUND_COLOR);
+    updateTimeDisplay(now);
+    updateDateDisplay(now);
+    updateWeatherDisplay(weather);
+    updateAlarmDisplay();
+}
 
-    // Always update the fade progress
-    updateBrightnessFade();
+//draws settings menu display with given labels
+void drawSettingsMenu(const char labCent[],
+    const char lab1[],
+    const char lab2[],
+    const char lab3[],
+    const char lab4[],
+    uint16_t textColor,
+    uint16_t bgColor)
+{
+    tft.fillScreen(bgColor);
+    drawCenteredString(labCent, textColor, bgColor, 4, 2);
+    drawButtonLabel(1, lab1, textColor, bgColor);
+    drawButtonLabel(2, lab2, textColor, bgColor);
+    drawButtonLabel(3, lab3, textColor, bgColor);
+    drawButtonLabel(4, lab4, textColor, bgColor);
+}
 
-    // Check ambient light every few seconds
-    if (currentTime - lastUpdate >= LIGHT_UPDATE_INTERVAL)
+//Displays status of given hardware component bools, returns overall status bool
+bool displayStartupStatus(bool rtcOK, bool playerOK, bool rfidOK)
+{
+    tft.fillScreen(BACKGROUND_COLOR);
+    tft.setTextColor(TEXT_COLOR, BACKGROUND_COLOR);
+    tft.setTextFont(1);
+    tft.setTextSize(2);
+    tft.setCursor(10, 30);
+    tft.println("Board status:\n");
+
+    tft.setTextSize(1);
+    tft.print("RTC ");
+    tft.println(rtcOK ? "OK" : "FAIL");
+
+    tft.print("DFPlayer ");
+    tft.println(playerOK ? "OK" : "FAIL");
+
+    tft.print("RFID ");
+    tft.println(rfidOK ? "OK" : "FAIL");
+
+    if (rtcOK && playerOK && rfidOK)
     {
-        uint16_t rawReading = readLightSensor();
-        uint8_t newTargetBrightness = calculateAmbientBrightness();
-
-        // Only change if significantly different to avoid constant adjustments
-        if (abs(targetBrightness - newTargetBrightness) > BRIGHTNESS_CHANGE_THRESHOLD)
-        {
-            setTargetBrightness(newTargetBrightness);
-        }
-
-        lastUpdate = currentTime;
+        tft.setTextColor(TFT_GREEN);
+        tft.println("\nAll hardware responding.");
+        tft.setTextColor(TEXT_COLOR);
+        return true;
     }
+    else
+    {
+        tft.setTextColor(TFT_RED);
+        tft.println("\nWarning: a hardware component is not responding.");
+        tft.println("Clock functions may not work as intended.");
+        tft.setTextColor(TEXT_COLOR);
+        return false;
+    }
+}
+
+//Helper to print a basic command line to the tft display with given message and color.
+void tftPrintLine(const char *message, uint16_t color)
+{
+    tft.setTextColor(color);
+    tft.println(message);
+    tft.setTextColor(TEXT_COLOR);
 }

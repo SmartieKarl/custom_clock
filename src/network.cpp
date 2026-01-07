@@ -1,102 +1,76 @@
 #include "network.h"
 #include "config.h"
-#include <time.h>
+#include <ArduinoJson.h>
+#include <HTTPClient.h>
+#include <WiFi.h>
 
-bool connectWiFi(const char *ssid, const char *pass, unsigned long timeoutMs)
-{
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(ssid, pass);
+WeatherData currentWeather = {0, 0, 0, 0, "", "", false};
+static uint8_t wifiUsers = 0;
+static SemaphoreHandle_t wifiMutex = NULL;
 
-    unsigned long start = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - start < timeoutMs)
-    {
-        delay(100);
+
+//initializes the WiFi mutex to avoid task conflicts
+void initWiFiManager() {
+    if (!wifiMutex) {
+        wifiMutex = xSemaphoreCreateMutex();
     }
-
-    return WiFi.status() == WL_CONNECTED; // false if wifi isn't connected
 }
 
-void disconnectWiFi()
-{
-    WiFi.disconnect(true);
-    WiFi.mode(WIFI_OFF);
-}
+//connects to WiFi and manages multiple session requests
+bool startWiFiSession() {
+    if (!wifiMutex) initWiFiManager();
 
-bool syncRTCFromNTP()
-{
-    static bool isFirstSync = true;
+    xSemaphoreTake(wifiMutex, portMAX_DELAY);
 
-    if (WiFi.status() != WL_CONNECTED)
+    if (wifiUsers == 0)
     {
-        if (!connectWiFi(WIFI_SSID, WIFI_PASS, 15000))
+        //only connect if it's the first user
+        WiFi.mode(WIFI_STA);
+        WiFi.begin(WIFI_SSID, WIFI_PASS);
+
+        unsigned long endTime = millis() + 15000;
+        while (WiFi.status() != WL_CONNECTED && millis() < endTime)
         {
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
+
+
+        if (WiFi.status() != WL_CONNECTED)
+        {
+            xSemaphoreGive(wifiMutex);
             return false;
         }
     }
 
-    // Configure time with timezone and NTP servers
-    configTzTime(TIME_ZONE, "pool.ntp.org", "time.nist.gov");
-
-    // Wait for time to be set
-    struct tm timeinfo;
-    unsigned long start = millis();
-    const unsigned long ntpTimeout = 10000; // 10s
-    bool gotTime = false;
-    while (millis() - start < ntpTimeout)
-    {
-        if (getLocalTime(&timeinfo))
-        {
-            gotTime = true;
-            break;
-        }
-        delay(200);
-    }
-
-    if (!gotTime)
-    {
-        return false;
-    }
-
-    // Set RTC to LOCAL time from the timezone-adjusted struct tm
-    extern RTC_DS3231 rtc; // Reference to global RTC object
-    DateTime dt(
-        timeinfo.tm_year + 1900,
-        timeinfo.tm_mon + 1,
-        timeinfo.tm_mday,
-        timeinfo.tm_hour,
-        timeinfo.tm_min,
-        timeinfo.tm_sec);
-    rtc.adjust(dt);
-
-    // If this is not the first sync, disconnect WiFi to save power
-    if (!isFirstSync)
-    {
-        disconnectWiFi();
-    }
-    else
-    {
-
-        isFirstSync = false; // Mark that first sync is complete
-    }
-
+    wifiUsers++;
+    xSemaphoreGive(wifiMutex);
     return true;
 }
 
-bool fetchWeather(WeatherData &weather)
-{
-    // Connect to WiFi if not already connected
-    if (WiFi.status() != WL_CONNECTED)
-    {
-        if (!connectWiFi(WIFI_SSID, WIFI_PASS, 10000))
-        {
-            return false;
-        }
+//ends a WiFi session, disconnecting if last user
+void endWiFiSession() {
+    xSemaphoreTake(wifiMutex, portMAX_DELAY);
+    if (wifiUsers > 0) wifiUsers--;
+
+    if (wifiUsers == 0) {
+        // Only disconnect if it's the last user
+        WiFi.disconnect(true);
+        WiFi.mode(WIFI_OFF);
     }
 
-    // Build API URL with proper URL encoding for city name
+    xSemaphoreGive(wifiMutex);
+}
+
+//fetches weather data from OpenWeatherMap API
+bool fetchWeather(WeatherData &weather)
+{
+    //connect to WiFi
+    if (!startWiFiSession()) return false;
+
+    //build API URL with proper URL encoding for city name
     String url = "http://api.openweathermap.org/data/2.5/weather?q=";
     String cityEncoded = String(WEATHER_CITY);
-    cityEncoded.replace(" ", "%20"); // URL encode spaces
+    cityEncoded.replace(" ", "%20"); //URL encode spaces
     url += cityEncoded;
     url += ",";
     url += WEATHER_COUNTRY;
@@ -111,35 +85,35 @@ bool fetchWeather(WeatherData &weather)
     if (httpCode <= 0)
     {
         http.end();
-        disconnectWiFi();
+        endWiFiSession();
         return false;
     }
 
     String payload = http.getString();
     http.end();
 
-    // Parse JSON response
+    //parse JSON response
     JsonDocument doc;
     DeserializationError error = deserializeJson(doc, payload);
 
     if (error)
     {
-        disconnectWiFi();
+        endWiFiSession();
         return false;
     }
 
-    // Validate Json data exists and is correct type
+    //validate Json data exists and is correct type
     if (!doc["main"].is<JsonObject>() ||
         !doc["main"]["temp"].is<float>() ||
         !doc["weather"].is<JsonArray>() ||
         doc["weather"].size() == 0 ||
         !doc["weather"][0]["description"].is<String>())
     {
-        disconnectWiFi();
+        endWiFiSession();
         return false;
     }
 
-    // Extract weather data
+    //extract weather data
     weather.temperature = doc["main"]["temp"];
     weather.tempMin = doc["main"]["temp_min"];
     weather.tempMax = doc["main"]["temp_max"];
@@ -147,8 +121,7 @@ bool fetchWeather(WeatherData &weather)
     weather.description = doc["weather"][0]["description"].as<String>();
     weather.mainCondition = doc["weather"][0]["main"].as<String>();
 
-    // Disconnect WiFi to save power
-    disconnectWiFi();
+    endWiFiSession();
 
     return true;
 }

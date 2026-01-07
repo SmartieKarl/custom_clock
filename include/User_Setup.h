@@ -27,6 +27,7 @@ as it's placed in the 'include' folder.
 #define TFT_CS 15 // Chip select control pin
 #define TFT_DC 2  // Data Command control pin
 #define TFT_RST 4 // Reset pin
+#define TOUCH_CS -1 // Touch screen chip select pin
 
 
 // Comment out the #defines below with // to stop that font being loaded

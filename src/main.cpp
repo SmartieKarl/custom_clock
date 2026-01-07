@@ -7,42 +7,58 @@
  ****************************/
 
 // ========== Includes ==========
-#include "alarm.h"
+#include "brightness.h"
+#include "button.h"
 #include "config.h"
 #include "display.h"
-#include "hardware.h"
 #include "network.h"
+#include "player.h"
 #include "rfid.h"
-#include <Arduino.h>
+#include "rtc.h"
+#include "settings.h"
 
-// External weather data (managed by hardware layer)
-extern WeatherData currentWeather;
+// FreeRTOS tasks
+void weatherTask(void *);
+void timeSyncTask(void *);
 
-// ========== Entry Points for Arduino ==========
+// helpers
+bool initializeHardware();
+
+//========== ENTRY POINT FOR PROGRAM ==========
+
 void setup()
 {
-    // Initialize all hardware
+    // Load persistent user settings from flash
+    uSet.load();
+
+    initWiFiManager();
+
     if (!initializeHardware())
     {
-        tft.println("");
-        tft.setTextColor(TFT_PINK);
-        tft.println("--------------Congrations, you broke it--------------");
-        while (true)
+        tftPrintLine("Continue anyways?", TFT_YELLOW);
+        while(!getButtonStates().any())
         {
-            delay(1000); // If you got here, check wiring?
+            delay(10);
         }
     }
+    else delay(1000);
 
-    delay(1000);
-    
-    // Clear screen
-    tft.fillScreen(TFT_BLACK);
+    drawMainScreen(getNow(), currentWeather);
 
-    DateTime now = rtc.now();
-    updateTimeDisplay(now);
-    updateDateDisplay(now);
-    updateWeatherDisplay(currentWeather);
-    updateAlarmDisplay();
+    xTaskCreate(
+        weatherTask,
+        "WeatherTask",
+        4096,
+        NULL,
+        0,
+        NULL);
+    xTaskCreate(
+        timeSyncTask,
+        "TimeSyncTask",
+        4096,
+        NULL,
+        0,
+        NULL);
 }
 
 void loop()
@@ -51,14 +67,16 @@ void loop()
     static uint8_t lastMinute = 255;
     static uint8_t lastDay = 255;
 
-    DateTime now = rtc.now();
+    DateTime now = getNow();
     uint8_t currentSecond = now.second();
     uint8_t currentMinute = now.minute();
     uint8_t currentDay = now.day();
-    
 
     // Check for RFID cards
-    checkRFIDCard(rfid, player, rtc, currentWeather);
+    rfidCheckCard();
+
+    // Check for button press
+    // handleButtonInput(rtc, player); //depto be fixedrecated, needs
 
     // Tasks per day
     if (currentDay != lastDay)
@@ -74,17 +92,7 @@ void loop()
         lastMinute = currentMinute;
 
         // Check if it's alarm time
-        checkAlarmTime(rtc, player);
-
-        // Update weather every 30 minutes
-        if (currentMinute == 0 || currentMinute == 30)
-        {
-            bool result = fetchWeather(currentWeather);
-            if (result)
-            {
-                updateWeatherDisplay(currentWeather);
-            }
-        }
+        checkIfAlarmTime();
     }
 
     // Tasks per second
@@ -99,4 +107,71 @@ void loop()
     updateAmbientBrightness();
 
     delay(LOOP_DELAY);
+}
+
+//========== FREERTOS TASKS ==========
+
+// Syncs weather data from online API on startup and every 30 minutes
+void weatherTask(void *parameter)
+{
+    while (true)
+    {
+        if (fetchWeather(currentWeather))
+            updateWeatherDisplay(currentWeather);
+
+        DateTime now = getNow();
+        uint8_t minutes = now.minute();
+        uint8_t seconds = now.second();
+        int next = (minutes < 30) ? 30 : 60;
+        uint16_t waitSeconds = (next - minutes) * 60 - seconds;
+        vTaskDelay(pdMS_TO_TICKS(waitSeconds * 1000UL)); // delay task until next half hour
+    }
+}
+
+// Syncs time from NTP server on startup and every midnight afterwards
+void timeSyncTask(void *parameter)
+{
+    while (true)
+    {
+        syncRTCFromNTP();
+
+        DateTime now = getNow();
+        uint8_t minutes = now.minute();
+        uint8_t seconds = now.second();
+        uint32_t secondsToMidnight = (23 - now.hour()) * 3600 + (59 - now.minute()) * 60 + (60 - now.second());
+        vTaskDelay(pdMS_TO_TICKS(secondsToMidnight * 1000UL)); // delay task until midnight
+    }
+}
+
+//========== HELPERS ==========
+// Initializes all hardware components
+bool initializeHardware()
+{
+    bool rtcOK = true;
+    bool playerOK = true;
+    bool rfidOK = true;
+
+    // Initialize button inputs
+
+    // Initialize display and show startup banner
+    initializeDisplay();
+
+    // Initialize brightness control
+    initializeBrightness();
+
+    // Initialize hardware components
+    if (!initializeRTC())
+    {
+        rtcOK = false;
+    }
+    if (!initializeDFPlayer(player, mySoftwareSerial))
+    {
+        playerOK = false;
+    }
+    if (!initializeRFID())
+    {
+        rfidOK = false;
+    }
+
+    return displayStartupStatus(rtcOK, playerOK, rfidOK);
 }
