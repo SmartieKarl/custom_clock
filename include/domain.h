@@ -1,13 +1,13 @@
 #pragma once
 #include <stdint.h>
-#include <arduino.h>
+#include <Arduino.h>
 
 //structs + enums kept here
 
 // ---- App flow ----
 enum class AppMode
 {
-    STARTUP,
+    BOOT,
     CLOCK,
     SETTINGS
 };
@@ -33,13 +33,14 @@ struct WeatherData
 };
 
 // ---- Button input ----
-struct ButtonStates
+struct ButtonState
 {
     bool btn1;
     bool btn2;
     bool btn3;
     bool btn4;
     bool any() { return btn1 || btn2 || btn3 || btn4; };
+    bool singlePress() { return btn1 + btn2 + btn3 + btn4 == 1; };
 };
 
 // ---- RFID states ----

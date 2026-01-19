@@ -1,5 +1,6 @@
 #pragma once
 #include "domain.h"
+#include "config.h"
 #include <TFT_eSPI.h>
 #include <RTClib.h>
 #include <stdint.h>
@@ -15,16 +16,16 @@ bool initializeDisplay();
 
 //helpers
 void drawCenteredString(const char text[],
-    uint16_t textColor,
-    uint16_t bgColor,
-    uint8_t font,
-    uint8_t size);
+    uint16_t textColor = TEXT_COLOR,
+    uint16_t bgColor = BACKGROUND_COLOR,
+    uint8_t font = 1,
+    uint8_t size = 2);
 void drawButtonLabel(uint8_t butNum,
     const char label[],
-    uint16_t textColor,
-    uint16_t bgColor,
-    uint8_t font,
-    uint8_t size);
+    uint16_t textColor = TEXT_COLOR,
+    uint16_t bgColor = BACKGROUND_COLOR,
+    uint8_t font = 1,
+    uint8_t size = 1);
 void flashScreen(uint16_t flashColor, int flashDuration);
 
 //screen updaters
@@ -34,15 +35,16 @@ void updateWeatherDisplay(const WeatherData &weather);
 void updateAlarmDisplay();
 
 //screen modes
-void drawMainScreen(const DateTime &now, const WeatherData &weather);
+void drawClockScreen(const DateTime &now, const WeatherData &weather);
 void drawSettingsMenu(const char labCent[],
     const char lab1[],
     const char lab2[],
     const char lab3[],
     const char lab4[],
-    uint16_t textColor,
-    uint16_t bgColor);
+    uint16_t textColor = TEXT_COLOR,
+    uint16_t bgColor = BACKGROUND_COLOR);
 
 bool displayStartupStatus(bool rtcOK, bool playerOK, bool rfidOK);
 
 void tftPrintLine(const char *message, uint16_t color);
+void tftPrintText(const char *message, uint16_t color);

@@ -13,7 +13,7 @@ void initializeButtons()
 }
 
 //returns which buttons are actively being pressed
-ButtonStates getButtonStates()
+ButtonState getButtonStates()
 {
 return {digitalRead(BUTTON_1_PIN) == LOW,
         digitalRead(BUTTON_2_PIN) == LOW,

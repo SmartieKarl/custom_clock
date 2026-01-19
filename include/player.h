@@ -9,7 +9,13 @@
 extern DFRobotDFPlayerMini player;
 extern HardwareSerial mySoftwareSerial;
 
-bool initializeDFPlayer(DFRobotDFPlayerMini &player, HardwareSerial &serial);
+bool initializeDFPlayer(HardwareSerial &serial);
 
 //Alarm functions
-void stopAlarm(DFRobotDFPlayerMini &player);
+void stopPlayback();
+
+void playTrack(int trackNumber);
+
+void loopTrack(int trackNumber);
+
+void playAllOnShuffle();

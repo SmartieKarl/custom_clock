@@ -2,14 +2,14 @@
 #include "config.h"
 #include <MFRC522.h>
 
-//Global RFID object
+// Global RFID object
 MFRC522 rfid(RFID_CS_PIN, RFID_RST_PIN);
 
-//Initialize the MFRC522 RFID module
+// Initialize the MFRC522 RFID module.
 bool initializeRFID()
 {
     // Initialize RFID module
-    SPI.begin(); // Initialize SPI bus
+    SPI.begin();
     rfid.PCD_Init();
 
     // Check if RFID module is responding
@@ -22,7 +22,7 @@ bool initializeRFID()
     return true;
 }
 
-//Main RFID card checking function
+// Main RFID card checking function
 RFIDResult rfidCheckCard()
 {
     if (!rfid.PICC_IsNewCardPresent() ||
@@ -39,17 +39,17 @@ RFIDResult rfidCheckCard()
     return {RFIDEvent::UNKNOWN_CARD, uid};
 }
 
-
-//Get card UID as formatted string
+// Get card UID as formatted string
 String getCardUID()
 {
     String cardUID = "";
     byte uidLen = rfid.uid.size;
-    if (uidLen == 0 || uidLen > 10) return ""; // Defensive: avoid out-of-bounds
+    if (uidLen == 0 || uidLen > 10)
+        return ""; // Defensive: avoid out-of-bounds
     for (byte i = 0; i < uidLen; i++)
     {
         if (rfid.uid.uidByte[i] < 0x10)
-            cardUID += "0"; //Add leading zero
+            cardUID += "0"; // Add leading zero
         cardUID += String(rfid.uid.uidByte[i], HEX);
     }
     cardUID.toUpperCase();

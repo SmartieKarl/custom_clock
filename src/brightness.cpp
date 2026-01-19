@@ -5,7 +5,8 @@
 static uint8_t currentBrightness = BRIGHTNESS_MAX; // Start at max, will auto-adjust in setup
 static uint16_t lastLightReading = 0;              // For hysteresis
 static uint8_t targetBrightness = BRIGHTNESS_MAX;  // Target brightness for fading
-static unsigned long lastFadeUpdate = 0;           // Timing for fade steps
+static unsigned long lastFadeUpdate = 0;           // Timing for fade step
+
 
 //initialize PWM for brightness control
 void initializeBrightness()

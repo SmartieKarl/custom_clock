@@ -12,11 +12,11 @@ bool syncRTCFromNTP();
 
 //Alarm functions
 void initializeRTCAlarm();
-bool checkIfAlarmTime();
+bool isAlarmTime();
 void setAlarm(uint8_t hr, uint8_t min, bool enable);
 bool isAlarmEnabled();
 
-bool getAlarmRinging();
+bool isAlarmRinging();
 void setAlarmRinging(bool ringing);
 AlarmTime getAlarm();
 

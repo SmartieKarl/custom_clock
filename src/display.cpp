@@ -22,10 +22,10 @@ bool initializeDisplay()
 
 //draws given string centered on the display
 void drawCenteredString(const char text[],
-    uint16_t textColor = TEXT_COLOR,
-    uint16_t bgColor = BACKGROUND_COLOR,
-    uint8_t font = 1,
-    uint8_t size = 1)
+    uint16_t textColor,
+    uint16_t bgColor,
+    uint8_t font,
+    uint8_t size)
 {
     tft.setTextColor(textColor, bgColor);
     tft.setTextDatum(MC_DATUM);
@@ -38,10 +38,10 @@ void drawCenteredString(const char text[],
 //draws label of given message for given button. Recommend font 1, size 2
 void drawButtonLabel(uint8_t butNum,
     const char label[],
-    uint16_t textColor = TEXT_COLOR,
-    uint16_t bgColor = BACKGROUND_COLOR,
-    uint8_t font = 1,
-    uint8_t size = 2)
+    uint16_t textColor,
+    uint16_t bgColor,
+    uint8_t font,
+    uint8_t size)
 {
     uint8_t x = 0;
     uint8_t y = 0;
@@ -87,15 +87,14 @@ void flashScreen(uint16_t flashColor, int flashDuration = 150)
     tft.fillScreen(flashColor);
     delay(flashDuration);
     tft.fillScreen(BACKGROUND_COLOR);
-    delay(50);
 }
 
 //updates time display
 void updateTimeDisplay(const DateTime &now)
 {
     char buf[12];
-    snprintf(buf, sizeof(buf), "%02d:%02d:%02d", now.hour(), now.minute(), now.second());
-    drawCenteredString(buf, TEXT_COLOR, BACKGROUND_COLOR, 7, 1);
+    snprintf(buf, sizeof(buf), "%02d:%02d", now.hour(), now.minute());
+    drawCenteredString(buf, TEXT_COLOR, BACKGROUND_COLOR, 7, 2);
 }
 
 //updates date display
@@ -135,7 +134,7 @@ void updateWeatherDisplay(const WeatherData &weather)
 void updateAlarmDisplay()
 {
     AlarmTime alarm = getAlarm();
-    bool isRinging = getAlarmRinging();
+    bool isRinging = isAlarmRinging();
 
     tft.setTextColor(TEXT_COLOR, BACKGROUND_COLOR);
     tft.setTextFont(1);
@@ -159,7 +158,7 @@ void updateAlarmDisplay()
 }
 
 //restores main screen display state
-void drawMainScreen(const DateTime &now, const WeatherData &weather)
+void drawClockScreen(const DateTime &now, const WeatherData &weather)
 {
     delay(100);
     tft.fillScreen(BACKGROUND_COLOR);
@@ -189,11 +188,7 @@ void drawSettingsMenu(const char labCent[],
 //Displays status of given hardware component bools, returns overall status bool
 bool displayStartupStatus(bool rtcOK, bool playerOK, bool rfidOK)
 {
-    tft.fillScreen(BACKGROUND_COLOR);
-    tft.setTextColor(TEXT_COLOR, BACKGROUND_COLOR);
-    tft.setTextFont(1);
-    tft.setTextSize(2);
-    tft.setCursor(10, 30);
+    tft.println("----------------------------------------");
     tft.println("Board status:\n");
 
     tft.setTextSize(1);
@@ -228,5 +223,13 @@ void tftPrintLine(const char *message, uint16_t color)
 {
     tft.setTextColor(color);
     tft.println(message);
+    tft.setTextColor(TEXT_COLOR);
+}
+
+//Helper to print basic text to the tft display with given message and color.
+void tftPrintText(const char *message, uint16_t color)
+{
+    tft.setTextColor(color);
+    tft.print(message);
     tft.setTextColor(TEXT_COLOR);
 }

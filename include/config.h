@@ -29,6 +29,7 @@ constexpr uint8_t BUTTON_4_PIN = 32; // bottom right
 // TFT LED brightness control
 constexpr uint8_t TFT_LED_PIN = 26;       // PWM pin for TFT backlight control
 constexpr uint8_t PHOTORESISTOR_PIN = 34; // ADC pin for ambient light sensor
+constexpr uint8_t BLUE_LED_PIN = 2;  // onboard blue LED
 
 //For a list of all hardware pin connections refer to /README.md
 
@@ -51,8 +52,8 @@ static const uint32_t PWM_FREQUENCY = 5000; // 5kHz PWM frequency
 static const uint8_t PWM_RESOLUTION = 8;    // 8-bit resolution (0-255)
 
 // TFT brightness control settings
-constexpr uint8_t BRIGHTNESS_MIN = 10;  // Minimum disp brightness (4%)
-constexpr uint8_t BRIGHTNESS_MAX = 255; // Maximum disp brightness (100%)
+constexpr uint8_t BRIGHTNESS_MIN = 1;  // Minimum disp brightness
+constexpr uint8_t BRIGHTNESS_MAX = 255; // Maximum disp brightness
 
 // Photoresistor ambient light control
 constexpr uint16_t LIGHT_SENSOR_MIN = 120;       // ADC reading for darkest environment
@@ -62,7 +63,7 @@ constexpr uint32_t LIGHT_UPDATE_INTERVAL = 5000; // Check light level every 5 se
 
 // Brightness fade settings
 constexpr uint8_t FADE_STEP_SIZE = 2;               // How much to change brightness per step (smaller = smoother)
-constexpr uint32_t FADE_STEP_DELAY = 25;            // Milliseconds between fade steps (smaller = faster fade)
+constexpr uint32_t FADE_STEP_DELAY = 10;            // Milliseconds between fade steps (smaller = faster fade)
 constexpr uint8_t BRIGHTNESS_CHANGE_THRESHOLD = 15; // Minimum change in brightness needed to trigger fade
 // Current calibration for 4.7kΩ pulldown resistor - tuned for room lighting ~1100 = 90%+ brightness
 

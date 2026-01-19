@@ -9,7 +9,7 @@ RTC_DS3231 rtc;
 
 //Global alarm variables
 static bool alarmRinging = false;
-AlarmTime currentAlarm = {7, 0, false};
+AlarmTime currentAlarm = {8, 00, false};
 
 
 // Initialize the DS3231 RTC module
@@ -33,8 +33,6 @@ bool syncRTCFromNTP()
 {
     if (!startWiFiSession())
         return false;
-
-    configTzTime(TIME_ZONE, "pool.ntp.org", "time.nist.gov");
 
     struct tm timeinfo = {};
     unsigned long start = millis();
@@ -97,7 +95,7 @@ void initializeRTCAlarm()
 }
 
 // Check if DS3231 hardware alarm fired and trigger if needed
-bool checkIfAlarmTime()
+bool isAlarmTime()
 {
     if (!currentAlarm.enabled)
         return false;
@@ -108,7 +106,6 @@ bool checkIfAlarmTime()
         
         // player.loop(uSet.alarmSong);
         setAlarmRinging(true);
-        updateAlarmDisplay(); // Show alarm ringing status
         return true;
     }
 
@@ -152,7 +149,7 @@ bool isAlarmEnabled()
 }
 
 //Returns alarm ringing state
-bool getAlarmRinging()
+bool isAlarmRinging()
 {
     return alarmRinging;
 }

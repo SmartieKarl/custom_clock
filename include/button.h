@@ -5,4 +5,4 @@
 //Handles reading the state of physical buttons
 
 void initializeButtons();
-ButtonStates getButtonStates();
+ButtonState getButtonStates();
