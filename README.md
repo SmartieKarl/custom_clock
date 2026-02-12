@@ -25,16 +25,17 @@ reason to go back to bed.
 
 ### Misc hardware
 - a 2" speaker with two jumper wires. I used [this one](https://www.aliexpress.us/item/3256809273226082.html?spm=a2g0o.detail.pcDetailTopMoreOtherSeller.1.5afbTihETihER0&gps-id=pcDetailTopMoreOtherSeller&scm=1007.40050.354490.0&scm_id=1007.40050.354490.0&scm-url=1007.40050.354490.0&pvid=ea5149e1-a9d5-4bd2-9c6d-d897df53609c&_t=gps-id:pcDetailTopMoreOtherSeller,scm-url:1007.40050.354490.0,pvid:ea5149e1-a9d5-4bd2-9c6d-d897df53609c,tpp_buckets:668%232846%238109%231935&pdp_ext_f=%7B%22order%22%3A%22272%22%2C%22eval%22%3A%221%22%2C%22sceneId%22%3A%2230050%22%2C%22fromPage%22%3A%22recommend%22%7D&pdp_npi=6%40dis%21USD%2111.22%210.99%21%21%2177.01%216.78%21%402101df0e17709188654595016e0e1b%2112000049170771831%21rec%21US%21%21ABXZ%211%210%21n_tag%3A-29910%3Bd%3Af98f678%3Bm03_new_user%3A-29895%3BpisId%3A5000000197847434&utparam-url=scene%3ApcDetailTopMoreOtherSeller%7Cquery_from%3A%7Cx_object_id%3A1005009459540834%7C_p_origin_prod%3A), they come in sets of 2.
+- a 1x2 header (for speaker) [here](https://www.aliexpress.us/item/3256803424019097.html?spm=a2g0o.productlist.seoads.5.746at6t4t6t4PO&p4p_pvid=202602121144474500690457924480002959327_3&_gl=1*4cviez*_gcl_au*NDA2MTQ5MDk3LjE3NzA5MTUwNjI.*_ga*NTIzMzY0NzY2MTEyMDA3LjE3NzA5MTUwNTU0MTU.*_ga_VED1YSGNC7*czE3NzA5MjQ0MzgkbzIkZzEkdDE3NzA5MjU1MTEkajI1JGwwJGgw&gatewayAdapt=glo2usa4itemAdapt)
 - 4 tactile buttons (like [these]())
-- a 8-pin header (Optional, but recommended for RFID scanner range to be adequate) [here](https://www.aliexpress.us/item/3256803424019097.html?spm=a2g0o.productlist.main.1.7732eOVqeOVqkZ&algo_pvid=f7f01241-a198-4716-9f68-11508b0911d9&algo_exp_id=f7f01241-a198-4716-9f68-11508b0911d9-0&pdp_ext_f=%7B%22order%22%3A%224905%22%2C%22eval%22%3A%221%22%2C%22fromPage%22%3A%22search%22%7D&pdp_npi=6%40dis%21USD%213.86%210.99%21%21%213.86%210.99%21%402101c44517709168716831516edaa4%2112000026601252522%21sea%21US%210%21ABX%211%210%21n_tag%3A-29910%3Bd%3Af98f678%3Bm03_new_user%3A-29895%3BpisId%3A5000000198352206&curPageLogUid=5fMaau2sdKL1&utparam-url=scene%3Asearch%7Cquery_from%3A%7Cx_object_id%3A1005003610333849%7C_p_origin_prod%3A)
+- a 1x8 header (Optional, but recommended for RFID scanner range to be adequate) [here](https://www.aliexpress.us/item/3256803424019097.html?spm=a2g0o.productlist.main.1.7732eOVqeOVqkZ&algo_pvid=f7f01241-a198-4716-9f68-11508b0911d9&algo_exp_id=f7f01241-a198-4716-9f68-11508b0911d9-0&pdp_ext_f=%7B%22order%22%3A%224905%22%2C%22eval%22%3A%221%22%2C%22fromPage%22%3A%22search%22%7D&pdp_npi=6%40dis%21USD%213.86%210.99%21%21%213.86%210.99%21%402101c44517709168716831516edaa4%2112000026601252522%21sea%21US%210%21ABX%211%210%21n_tag%3A-29910%3Bd%3Af98f678%3Bm03_new_user%3A-29895%3BpisId%3A5000000198352206&curPageLogUid=5fMaau2sdKL1&utparam-url=scene%3Asearch%7Cquery_from%3A%7Cx_object_id%3A1005003610333849%7C_p_origin_prod%3A)
 - 14-pin ribbon cable [here](https://www.aliexpress.us/item/3256805224133202.html?spm=a2g0o.productlist.main.17.70c9VXaMVXaMPb&algo_pvid=d7e3322f-eccb-495a-9034-0816200b9593&algo_exp_id=d7e3322f-eccb-495a-9034-0816200b9593-16&pdp_ext_f=%7B%22order%22%3A%2215%22%2C%22eval%22%3A%221%22%2C%22fromPage%22%3A%22search%22%7D&pdp_npi=6%40dis%21USD%217.93%210.99%21%21%217.93%210.99%21%402103129017709170436946618e5790%2112000032947330320%21sea%21US%210%21ABX%211%210%21n_tag%3A-29910%3Bd%3Af98f678%3Bm03_new_user%3A-29895%3BpisId%3A5000000197847434&curPageLogUid=mJgWqnB3B9uD&utparam-url=scene%3Asearch%7Cquery_from%3A%7Cx_object_id%3A1005005410447954%7C_p_origin_prod%3A) 
-- 2 2x7 ribbon cable through hole connectors [here]()
-- a 2x7 header [here]()
+- 2 2x7 IDC connectors [here](https://www.digikey.com/en/products/detail/cw-industries/CWR-130-14-0000/9899)
+- a 2x7 dip socket (optional, but recommended if you want a way to disconnect the boards) [here](https://www.newark.com/multicomp-pro/spc15496/dip-socket-14-position-through/dp/82K7787?CMP=KNC-BUSA-GEN-Shopping-ALL&mckv=s_dc|pcrid||plid||kword||match|e|slid||product|82K7787|pgrid|1231453304461926|ptaid|pla-4580565455222458|&msclkid=5e18dbcbb6c91ab8dd9ab2458683c106)
 - a microsd card for DFPlayer (max 32gb)
 - a photoresistor
 - a 1kΩ resistor, 2.2kΩ resistor, and 4.7kΩ resistor
 - a 10μF capacitor and a 0.1μF capacitor
-- a usb-c cable (only if you want use electricity with it)
+- a usb-c cable (only needed if you want to use electricity)
 
 **Make sure all hardware you get matches the hardware on the boards in the photos at the bottom of this file**
 
@@ -115,8 +116,8 @@ You will need:
 - All listed hardware above
 - Access to a 3d printer and PCB mill (there are online services)
 - Soldering iron
-- 2 <1 inch 5mm screws
-- 2 matching bolts for screws
+- 2 9mm long 5mm screws
+- 2 5mm nuts for screws
 
 ## Printing & Milling
 - Included in this repo is a [clock_parts](./clock_parts) folder. It contains the
