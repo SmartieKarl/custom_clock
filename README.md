@@ -1,4 +1,4 @@
-# Michael's Custom Clock
+# Custom Clock
 
 This is an ESP32 based alarm clock with RFID functionality. The idea behind
 this is that in order to turn off your alarm in the morning, you have to
@@ -130,7 +130,7 @@ photoresistor to do it's thing.
 
 - Solder everything to boards (like pictures below)
 
-- Place bolts in the shell (in the suspiciously nut-shaped divots) You might need to use pliers to press them in there.
+- Place nuts in the shell (in the suspiciously nut-shaped divots) You might need to use pliers to press them in there.
 If you're desperate, you can get them hot with a soldering iron to melt them in.
 
 - Slide main board into the main shell (so the usb port is lined up with the back)
