@@ -2,9 +2,10 @@
 #include <stdint.h>
 #include <Arduino.h>
 
-//structs + enums kept here
+// domain.h
+//Structs + enums that more than one file needs kept here
 
-// ---- App flow ----
+// ========== APPLICATION STATE ==========
 enum class AppMode
 {
     BOOT,
@@ -12,7 +13,7 @@ enum class AppMode
     SETTINGS
 };
 
-// ---- Time / alarm ----
+// ========== TIME & ALARM ==========
 struct AlarmTime
 {
     uint8_t hour;
@@ -20,7 +21,7 @@ struct AlarmTime
     bool enabled;
 };
 
-// ---- Weather ----
+// ========== WEATHER ==========
 struct WeatherData
 {
     float temperature;
@@ -32,7 +33,7 @@ struct WeatherData
     bool valid;
 };
 
-// ---- Button input ----
+// ========== INPUT ==========
 struct ButtonState
 {
     bool btn1;
@@ -43,7 +44,7 @@ struct ButtonState
     bool singlePress() { return btn1 + btn2 + btn3 + btn4 == 1; };
 };
 
-// ---- RFID states ----
+// ========== RFID ==========
 enum class RFIDEvent
 {
     NONE,

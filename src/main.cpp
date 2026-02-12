@@ -7,23 +7,23 @@
 
 #include "brightness.h"
 #include "button.h"
+#include "command_interface.h"
 #include "config.h"
 #include "display.h"
+#include "log.h"
 #include "network.h"
 #include "player.h"
 #include "rfid.h"
 #include "rtc.h"
 #include "settings.h"
-#include "settings_menu.h"
-
-// FreeRTOS tasks
-void weatherTask(void *);
-void timeSyncTask(void *);
+#include "tasks.h"
+#include <esp_task_wdt.h>
 
 // Helpers
 bool initializeHardware();
 void handleClockButtons(ButtonState butIn);
 void handleSettingsButtons(ButtonState butIn);
+void handleSerialCommand(const char *cmd);
 
 // App state
 AppMode currentMode = AppMode::BOOT;
@@ -32,18 +32,23 @@ AppMode currentMode = AppMode::BOOT;
 
 void setup()
 {
-    // Load persistent user settings from flash
+    Serial.begin(9600);
+
     uSet.load();
+
+    esp_task_wdt_init(30, true);
+    esp_task_wdt_add(NULL);
 
     initWiFiManager();
     configTzTime(TIME_ZONE, "pool.ntp.org", "time.nist.gov");
 
+    // Initialize hardware
     if (!initializeHardware())
     {
         unsigned long lastAction = millis();
         const unsigned long interval = 1000;
         tftPrintText("Press button 1 to continue", TFT_YELLOW);
-        while(!getButtonStates().btn1)
+        while (!getButtonStates().btn1)
         {
             unsigned long now = millis();
             if (now - lastAction >= interval)
@@ -59,49 +64,49 @@ void setup()
         delay(1000);
     }
 
+    esp_reset_reason_t reason = esp_reset_reason();
+    LOG.log("\nREBOOT, code %d", int(reason));
+
     currentMode = AppMode::CLOCK;
     drawClockScreen(getNow(), currentWeather);
-    
+
     // Start background tasks
-    xTaskCreate(weatherTask, "WeatherTask", 4096, NULL, 1, NULL);
-    xTaskCreate(timeSyncTask, "TimeSyncTask", 4096, NULL, 1, NULL);
+    xTaskCreatePinnedToCore(weatherTask, "WeatherTask", 4096, NULL, 1, NULL, 1);
+    xTaskCreatePinnedToCore(timeSyncTask, "TimeSyncTask", 4096, NULL, 1, NULL, 1);
+    xTaskCreatePinnedToCore(blynkTask, "BlynkTask", 16384, NULL, 1, NULL, 1);
 }
 
 void loop()
 {
+    static unsigned long alarmStartMillis = 0;
+    static bool snoozeAlarmTriggered = false;
+    static bool isColon = false;
+
     static uint8_t lastSecond = 255;
     static uint8_t lastMinute = 255;
     static uint8_t lastDay = 255;
     static ButtonState lastButtonState = {false, false, false, false};
+    static unsigned long lastBrightnessUpdate = 0;
+    static char inputBuffer[64];
+    static uint8_t inputPos = 0;
+
+    esp_task_wdt_reset(); // feed the dog
 
     DateTime now = getNow();
     uint8_t currentSecond = now.second();
     uint8_t currentMinute = now.minute();
     uint8_t currentDay = now.day();
-
-    // Get button state with debouncing
     ButtonState currentButtonState = getButtonStates();
-    
-    // Only process button press on rising edge (button just pressed)
+
+    // Check for serial input
+    handleSerialIn();
+
+    // Buttons
     bool buttonJustPressed = currentButtonState.any() && !lastButtonState.any();
-    
     if (buttonJustPressed)
     {
-        switch (currentMode)
-        {
-            case AppMode::CLOCK:
-                handleClockButtons(currentButtonState);
-                break;
-                
-            case AppMode::SETTINGS:
-                handleSettingsButtons(currentButtonState);
-                break;
-                
-            default:
-                break;
-        }
+        handleClockButtons(currentButtonState);
     }
-    
     lastButtonState = currentButtonState;
 
     // Clock mode operations
@@ -111,12 +116,26 @@ void loop()
         if (isAlarmRinging())
         {
             RFIDResult rfidResult = rfidCheckCard();
-            if (rfidResult.event == RFIDEvent::ALARM_CARD)
+            if (rfidResult.event != RFIDEvent::NONE)
             {
                 setAlarmRinging(false);
-                stopPlayback();
+                stopAudioPlayback();
+                setVolume(PLAYER_VOLUME);
                 flashScreen(TFT_GREEN, 500);
                 drawClockScreen(now, currentWeather);
+
+                // reset snooze logic
+                alarmStartMillis = 0;
+                snoozeAlarmTriggered = false;
+                return;
+            }
+
+            if (!snoozeAlarmTriggered && millis() - alarmStartMillis >= 5UL * 60UL * 1000UL)
+            {
+                // setVolume(25);
+                // loopPlayerFolder(2);
+                playTrack(3, 2, 25);
+                snoozeAlarmTriggered = true;
             }
         }
 
@@ -131,154 +150,93 @@ void loop()
         if (currentMinute != lastMinute)
         {
             lastMinute = currentMinute;
-            updateTimeDisplay(now);
 
             // Check alarm
-            if(isAlarmTime())
+            if (isAlarmTime())
             {
+                alarmStartMillis = millis();
+
                 updateAlarmDisplay();
-                playAllOnShuffle();
+                playTrack(random(1, 9), 1, PLAYER_VOLUME);
             }
         }
 
-        // Per-second updates (if needed)
+        // Per-second updates
         if (currentSecond != lastSecond)
         {
             lastSecond = currentSecond;
-            // Add any per-second updates here
+            isColon = !isColon;
+            updateTimeDisplay(now, isColon);
         }
     }
 
-    // Update ambient brightness (works in all modes)
-    updateAmbientBrightness();
+    // Update ambient brightness
+    if (millis() - lastBrightnessUpdate >= 100)
+    {
+        lastBrightnessUpdate = millis();
+        updateAmbientBrightness();
+    }
 
-    delay(LOOP_DELAY);
+    vTaskDelay(pdMS_TO_TICKS(1));
 }
 
 //========== BUTTON HANDLERS ==========
 
 void handleClockButtons(ButtonState butIn)
 {
-    if (!butIn.singlePress()) return;
+    // Two alarms
+    static AlarmTime alarms[] = {
+        {6, 0, true}, // 6am
+        {7, 0, true}, // 7am
+        {8, 0, true}, // 8am
+        {9, 0, true}, // 9am
+    };
+
+    constexpr size_t ALARM_COUNT = sizeof(alarms) / sizeof(alarms[0]);
+    static size_t alarmIndex = 0; // which alarm is selected
+
+    static int testTrack = 1;
+
+    if (!butIn.singlePress())
+        return;
 
     if (butIn.btn1)
     {
-        // Enter settings menu
-        currentMode = AppMode::SETTINGS;
-        settingsMenu.enter();
-        Serial.println("Entering settings menu");
+        // Previous alarm
+        alarmIndex = (alarmIndex + ALARM_COUNT - 1) % ALARM_COUNT;
+        AlarmTime alm = alarms[alarmIndex];
+        setAlarm(alm.hour, alm.minute, alm.enabled);
+        updateAlarmDisplay();
+
+        Serial.print("Selected alarm: ");
+        Serial.println(alarmIndex);
     }
     else if (butIn.btn2)
     {
-        // Quick alarm toggle
-        AlarmTime alm = getAlarm();
-        setAlarm(alm.hour, alm.minute, !alm.enabled);
+        // Next alarm
+        alarmIndex = (alarmIndex + 1) % ALARM_COUNT;
+        AlarmTime alm = alarms[alarmIndex];
+        setAlarm(alm.hour, alm.minute, alm.enabled);
         updateAlarmDisplay();
-        flashScreen(alm.enabled ? TFT_GREEN : TFT_RED, 150);
-        Serial.println(alm.enabled ? "Alarm enabled" : "Alarm disabled");
+
+        Serial.print("Selected alarm: ");
+        Serial.println(alarmIndex);
     }
     else if (butIn.btn3)
     {
-        // Manual weather update
-        Serial.println("Requesting weather update");
-        WeatherData weather;
-        if (fetchWeather(weather))
-        {
-            currentWeather = weather;
-            updateWeatherDisplay(currentWeather);
-            flashScreen(TFT_GREEN, 150);
-        }
-        else
-        {
-            flashScreen(TFT_RED, 150);
-        }
+        // Placeholder for future function
+        testTrack = (testTrack + 1) % 4;
+        playTrack(testTrack, 2);
+        Serial.print("Now playing track ");
+        Serial.println(testTrack);
     }
     else if (butIn.btn4)
     {
-        // Placeholder for future function
-        Serial.println("Button 4 pressed");
-        flashScreen(TFT_BLUE, 150);
-    }
-}
-
-void handleSettingsButtons(ButtonState butIn)
-{
-    if (!butIn.singlePress()) return;
-
-    if (butIn.btn1)  // Up/Increment
-    {
-        if (settingsMenu.isActive())
-        {
-            // If editing a value, increment it
-            // Otherwise navigate up
-            settingsMenu.navigateUp();
-            settingsMenu.incrementValue();
-        }
-    }
-    else if (butIn.btn2)  // Down/Decrement
-    {
-        if (settingsMenu.isActive())
-        {
-            settingsMenu.navigateDown();
-            settingsMenu.decrementValue();
-        }
-    }
-    else if (butIn.btn3)  // Back
-    {
-        settingsMenu.navigateBack();
-        
-        // Check if menu exited
-        if (!settingsMenu.isActive())
-        {
-            currentMode = AppMode::CLOCK;
-            drawClockScreen(getNow(), currentWeather);
-            Serial.println("Exiting settings menu");
-        }
-    }
-    else if (butIn.btn4)  // Select/Enter
-    {
-        settingsMenu.selectCurrent();
-    }
-}
-
-//========== FREERTOS TASKS ==========
-
-void weatherTask(void *parameter)
-{
-    while (true)
-    {
-        if (fetchWeather(currentWeather))
-        {
-            if (currentMode == AppMode::CLOCK)
-            {
-                updateWeatherDisplay(currentWeather);
-            }
-        }
-
-        // Calculate delay until next half hour
-        DateTime now = getNow();
-        uint8_t minutes = now.minute();
-        uint8_t seconds = now.second();
-        int next = (minutes < 30) ? 30 : 60;
-        uint16_t waitSeconds = (next - minutes) * 60 - seconds;
-        
-        vTaskDelay(pdMS_TO_TICKS(waitSeconds * 1000UL));
-    }
-}
-
-void timeSyncTask(void *parameter)
-{
-    while (true)
-    {
-        syncRTCFromNTP();
-
-        // Calculate delay until midnight
-        DateTime now = getNow();
-        uint32_t secondsToMidnight = (23 - now.hour()) * 3600 + 
-                                     (59 - now.minute()) * 60 + 
-                                     (60 - now.second());
-        
-        vTaskDelay(pdMS_TO_TICKS(secondsToMidnight * 1000UL));
+        AlarmTime alm = getAlarm();
+        bool newState = !alm.enabled;
+        setAlarm(alm.hour, alm.minute, newState);
+        updateAlarmDisplay();
+        Serial.println(alm.enabled ? "Alarm enabled" : "Alarm disabled");
     }
 }
 
@@ -300,13 +258,13 @@ bool initializeHardware()
         rtcOK = false;
         Serial.println("ERROR: RTC initialization failed");
     }
-    
+
     if (!initializeDFPlayer(mySoftwareSerial))
     {
         playerOK = false;
         Serial.println("ERROR: DFPlayer initialization failed");
     }
-    
+
     if (!initializeRFID())
     {
         rfidOK = false;

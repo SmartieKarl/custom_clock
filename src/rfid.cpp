@@ -1,3 +1,6 @@
+#include <Arduino.h>
+#include <SPI.h>
+
 #include "rfid.h"
 #include "config.h"
 #include <MFRC522.h>
@@ -32,6 +35,9 @@ RFIDResult rfidCheckCard()
     }
 
     String uid = getCardUID();
+
+    rfid.PICC_HaltA();
+    rfid.PCD_StopCrypto1();
 
     if (uid == ALARM_CARD_UID)
         return {RFIDEvent::ALARM_CARD, uid};
