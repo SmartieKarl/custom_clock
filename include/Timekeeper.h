@@ -15,6 +15,7 @@ class Timekeeper
 
     void update();
     DateTime time() const;
+    void setTime(DateTime time);
 
     bool tick() const;
     bool secondTick() const;

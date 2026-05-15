@@ -4,7 +4,7 @@
 #include <RTClib.h> // RTC access for time sync
 
 // NetworkManager.h
-// Mutex-protected network interaction, with
+// Mutex-protected network interaction module
 
 struct WeatherData
 {

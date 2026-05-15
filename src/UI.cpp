@@ -10,9 +10,9 @@ UI::UI(TFT_eSPI &tft, Buttons &btn, Timekeeper &tk, NetworkManager &net) // TODO
 bool UI::begin()
 {
     _tft.setRotation(1); // landscape orientation
-    _tft.fillScreen(BACKGROUND_COLOR);
+    _tft.fillScreen(Colors::BACKGROUND_COLOR);
     _tft.setCursor(0, 5);
-    _tft.setTextColor(TEXT_COLOR);
+    _tft.setTextColor(Colors::TEXT_COLOR);
     _tft.setTextSize(1);
     _tft.println("- Michael's totally wicked custom clock v0.52 -\n");
 
@@ -27,11 +27,11 @@ void UI::run()
     case State::Boot: // As of right now, this should not be possible.
     {
         DateTime time = _tk.time();
-        _tft.fillScreen(BACKGROUND_COLOR);
+        _tft.fillScreen(Colors::BACKGROUND_COLOR);
         _tft.setTextSize(2);
         _tft.setCursor(8, 8);
         _tft.printf("Timestamp %02d:%02d:%02d %02d/%02d/%04d", time.hour(), time.minute(), time.second(), time.month(), time.day(), time.year());
-        drawCenteredString("How did we get here?", TFT_YELLOW, BACKGROUND_COLOR, 2);
+        drawCenteredString("How did we get here?", TFT_YELLOW, Colors::BACKGROUND_COLOR, 2);
         break;
     }
 
@@ -112,7 +112,7 @@ State UI::getState() const
 bool UI::displayStartupStatus(bool rtcOK, bool rtcLostPower, bool playerOK, bool rfidOK)
 {
     _tft.setTextSize(1);
-    _tft.setTextColor(TEXT_COLOR);
+    _tft.setTextColor(Colors::TEXT_COLOR);
 
     _tft.println("----------------------------------------");
     _tft.println("Board status:\n");
@@ -124,7 +124,7 @@ bool UI::displayStartupStatus(bool rtcOK, bool rtcLostPower, bool playerOK, bool
     {
         _tft.setTextColor(TFT_YELLOW);
         _tft.println("RTC experienced a power loss since last boot.");
-        _tft.setTextColor(TEXT_COLOR);
+        _tft.setTextColor(Colors::TEXT_COLOR);
     }
 
     _tft.print("DFPlayer ");
@@ -133,21 +133,24 @@ bool UI::displayStartupStatus(bool rtcOK, bool rtcLostPower, bool playerOK, bool
     _tft.print("RFID ");
     _tft.println(rfidOK ? "OK" : "FAIL");
 
+    bool ok = false;
     if (rtcOK && playerOK && rfidOK)
     {
         _tft.setTextColor(TFT_GREEN);
-        _tft.println("\nAll hardware responding.");
-        _tft.setTextColor(TEXT_COLOR);
-        return true;
+        _tft.println("\nAll hardware components responding.");
+        _tft.setTextColor(Colors::TEXT_COLOR);
+        if (!rtcLostPower)
+            ok = true;
     }
     else
     {
         _tft.setTextColor(TFT_RED);
         _tft.println("\nWarning: a hardware component is not responding.");
         _tft.println("Clock functions may not work as intended.");
-        _tft.setTextColor(TEXT_COLOR);
-        return false;
+        _tft.setTextColor(Colors::TEXT_COLOR);
     }
+    _tft.println("\nSystem check complete.");
+    return ok;
 }
 
 //==================== Clock State ====================
@@ -156,7 +159,7 @@ bool UI::displayStartupStatus(bool rtcOK, bool rtcLostPower, bool playerOK, bool
 void UI::drawClockScreen(const DateTime &time, const WeatherData &weather)
 {
     delay(100);
-    _tft.fillScreen(BACKGROUND_COLOR);
+    _tft.fillScreen(Colors::BACKGROUND_COLOR);
     updateTimeDisplay(time);
     updateDateDisplay(time);
     updateWeatherDisplay(weather);
@@ -171,13 +174,13 @@ void UI::updateTimeDisplay(const DateTime &time, bool isColon)
         snprintf(buf, sizeof(buf), "%02d:%02d", time.hour(), time.minute());
     else
         snprintf(buf, sizeof(buf), "%02d %02d", time.hour(), time.minute());
-    drawCenteredString(buf, TEXT_COLOR, BACKGROUND_COLOR, 7, 2);
+    drawCenteredString(buf, Colors::TEXT_COLOR, Colors::BACKGROUND_COLOR, 7, 2);
 }
 
 // Updates date display
 void UI::updateDateDisplay(const DateTime &time)
 {
-    _tft.setTextColor(TEXT_COLOR, BACKGROUND_COLOR);
+    _tft.setTextColor(Colors::TEXT_COLOR, Colors::BACKGROUND_COLOR);
     _tft.setTextFont(1);
     _tft.setTextSize(1);
     _tft.setCursor(2, 16);
@@ -189,8 +192,8 @@ void UI::updateDateDisplay(const DateTime &time)
 // updates weather display
 void UI::updateWeatherDisplay(const WeatherData &weather)
 {
-    _tft.fillRect(0, 208, 120, 32, BACKGROUND_COLOR);
-    _tft.setTextColor(TEXT_COLOR, BACKGROUND_COLOR);
+    _tft.fillRect(0, 208, 120, 32, Colors::BACKGROUND_COLOR);
+    _tft.setTextColor(Colors::TEXT_COLOR, Colors::BACKGROUND_COLOR);
     _tft.setTextFont(1);
 
     if (!weather.valid)
@@ -236,7 +239,7 @@ void UI::updateAlarmDisplay()
         return;
     AlarmDisplayData alarm = _alarmDataCb();
 
-    _tft.setTextColor(TEXT_COLOR, BACKGROUND_COLOR);
+    _tft.setTextColor(Colors::TEXT_COLOR, Colors::BACKGROUND_COLOR);
     _tft.setTextFont(1);
     _tft.setTextSize(1);
     _tft.setTextDatum(BR_DATUM);

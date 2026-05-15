@@ -1,5 +1,6 @@
 #include "BrightnessController.h"
 
+using namespace BrightnessConfig;
 // Constructor
 BrightnessController::BrightnessController(uint8_t pwmPin,
                                            uint8_t pwmChannel,

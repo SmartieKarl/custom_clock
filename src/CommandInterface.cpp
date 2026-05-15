@@ -126,6 +126,181 @@ void CommandInterface::cmdStatus(int argc, char *argv[])
     CMD_APPEND("date: %02d/%02d/%04d\n", now.month(), now.day(), now.year());
 }
 
+void CommandInterface::cmdTime(int argc, char *argv[])
+{
+    DateTime time = _tk.time();
+
+    // No arguments -> print current time
+    if (argc == 1)
+    {
+        CMD_APPEND("It is currently %02d/%02d/%04d, %02d:%02d:%02d.",
+                   time.month(),
+                   time.day(),
+                   time.year(),
+                   time.hour(),
+                   time.minute(),
+                   time.second());
+        return;
+    }
+
+    // Must be: time set <year> <month> <day> <hour> <minute> <second>
+    if (strcmp(argv[1], "set") == 0)
+    {
+        if (argc != 8)
+        {
+            CMD_APPEND("Usage: time set <year> <month> <day> <hour> <minute> <second>");
+            return;
+        }
+
+        long year, month, day, hr, min, sec;
+
+        if (!parseLong(argv[2], year, "year") ||
+            !parseLong(argv[3], month, "month") ||
+            !parseLong(argv[4], day, "day") ||
+            !parseLong(argv[5], hr, "hour") ||
+            !parseLong(argv[6], min, "minute") ||
+            !parseLong(argv[7], sec, "second"))
+        {
+            CMD_APPEND("Usage: time set <year> <month> <day> <hour> <minute> <second>");
+            return;
+        }
+
+        // Range validation
+        if (year < 2000 || year > 2099)
+        {
+            CMD_APPEND("Err: year must be 2000-2099");
+            return;
+        }
+
+        if (month < 1 || month > 12)
+        {
+            CMD_APPEND("Err: month must be 1-12");
+            return;
+        }
+
+        if (day < 1 || day > 31)
+        {
+            CMD_APPEND("Err: day must be 1-31");
+            return;
+        }
+
+        if (hr < 0 || hr > 23)
+        {
+            CMD_APPEND("Err: hour must be 0-23");
+            return;
+        }
+
+        if (min < 0 || min > 59)
+        {
+            CMD_APPEND("Err: minute must be 0-59");
+            return;
+        }
+
+        if (sec < 0 || sec > 59)
+        {
+            CMD_APPEND("Err: second must be 0-59");
+            return;
+        }
+
+        _tk.setTime(DateTime(
+            (int)year,
+            (int)month,
+            (int)day,
+            (int)hr,
+            (int)min,
+            (int)sec));
+
+        CMD_APPEND("Time set to %02ld/%02ld/%04ld %02ld:%02ld:%02ld",
+                   month, day, year,
+                   hr, min, sec);
+
+        return;
+    }
+
+    CMD_APPEND("Usage: time set <year> <month> <day> <hour> <minute> <second>");
+}
+
+// Executes log system functions
+void CommandInterface::cmdLog(int argc, char *argv[])
+{
+    if (argc < 2)
+    {
+        CMD_APPEND("Usage: log <log <message>> || <pop> || <size> || <printall> || <dumpbuffer> || <save> || <load> || <clear>");
+        return;
+    }
+
+    if (strcmp(argv[1], "log") == 0)
+    {
+        if (argc < 3)
+        {
+            CMD_APPEND("Usage: log log <message>");
+            return;
+        }
+
+        char msg[CMD_IN_SIZE] = {0};
+
+        // Build string after arg 2 into one concatenated string
+        for (int i = 2; i < argc; ++i)
+        {
+            strncat(msg, argv[i], sizeof(msg) - strlen(msg) - 1);
+
+            // Add spaces between args
+            if (i < argc - 1)
+                strncat(msg, " ", sizeof(msg) - strlen(msg) - 1);
+        }
+
+        LOG.log("%s", msg);
+
+        CMD_APPEND("Logged: %s", msg);
+    }
+    else if (strcmp(argv[1], "pop") == 0)
+    {
+        char msg[LOG_ENTRY_SIZE];
+        if (LOG.pop(msg))
+            CMD_APPEND("%s", msg);
+        else
+            CMD_APPEND("Err: log is empty.");
+    }
+    else if (strcmp(argv[1], "size") == 0)
+    {
+        CMD_APPEND("%d", LOG.size());
+    }
+    else if (strcmp(argv[1], "printall") == 0)
+    {
+        if (LOG.empty())
+            CMD_APPEND("Err: log is empty.");
+        else
+        {
+            LOG.printToSerial();
+            CMD_APPEND("Log has been printed to Serial output.");
+        }
+    }
+    else if (strcmp(argv[1], "dumpbuffer") == 0)
+    {
+        LOG.dumpRawBufferToSerial();
+        CMD_APPEND("Raw log buffer has been dumped to Serial output.");
+    }
+    else if (strcmp(argv[1], "save") == 0)
+    {
+        LOG.saveToFlash();
+        CMD_APPEND("Log saved to flash.");
+    }
+    else if (strcmp(argv[1], "load") == 0)
+    {
+        LOG.loadFromFlash();
+        CMD_APPEND("Log restored from flash.");
+    }
+    else if (strcmp(argv[1], "clear") == 0)
+    {
+        LOG.clear();
+        CMD_APPEND("Log data cleared.");
+    }
+    else
+    {
+        CMD_APPEND("arg '%s' not recognized.", argv[1]);
+    }
+}
+
 // Either sets alarm at given time, or disables alarm
 void CommandInterface::cmdAlarm(int argc, char *argv[])
 {
@@ -364,13 +539,23 @@ void CommandInterface::cmdWiFiSession(int argc, char *argv[])
     }
     if (strcmp(argv[1], "on") == 0)
     {
-        _net.setWiFiPersistent(true);
-        CMD_APPEND("Wifi session started.\nPolling frequency set to continuous.");
+        if (!_net.isWiFiPersistent())
+        {
+            _net.setWiFiPersistent(true);
+            CMD_APPEND("Wifi session started.\nBLynk Polling frequency is set to continuous.");
+        }
+        else
+            CMD_APPEND("Wifi session is already active.");
     }
     else if (strcmp(argv[1], "off") == 0)
     {
-        _net.setWiFiPersistent(false);
-        CMD_APPEND("Wifi session stopped.\nPolling frequency set to every :00 & :30.");
+        if (_net.isWiFiPersistent())
+        {
+            _net.setWiFiPersistent(false);
+            CMD_APPEND("Wifi session stopped.\n BLynk Polling frequency is set to every :00 & :30.");
+        }
+        else
+            CMD_APPEND("Wifi session is already disabled.");
     }
     else
         CMD_APPEND("Err: arg was invalid (on || off)");
@@ -404,4 +589,22 @@ void CommandInterface::cmdSync(int argc, char *argv[])
     }
     else
         CMD_APPEND("Err: arg was invalid (time || weather)");
+}
+
+// Adds to or gets runtime log
+// TODO: add functionality for this cmd
+
+// TODO: implement this neat helper across the file for parsing.
+bool CommandInterface::parseLong(char *arg, long &out, const char *name)
+{
+    char *endptr;
+    out = strtol(arg, &endptr, 10);
+
+    if (endptr == arg || *endptr != '\0')
+    {
+        CMD_APPEND("Err: %s must be a valid number", name);
+        return false;
+    }
+
+    return true;
 }

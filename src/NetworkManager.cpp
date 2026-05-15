@@ -3,6 +3,7 @@
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
 #include <WiFi.h>
+#include <esp_task_wdt.h> // To feed the dog on time-consuming functions
 
 NetworkManager::NetworkManager(RTC_DS3231 &rtc)
     : _rtc(rtc), _users(0), _persistent(false), _connecting(false), _mtx(NULL)
@@ -18,31 +19,48 @@ void NetworkManager::begin()
 
 bool NetworkManager::startWiFiSession()
 {
-    xSemaphoreTake(_mtx, portMAX_DELAY);
+    // 30 sec timeout to prevent deadlock
+    // This is the queue if another user is using the wifi
+    if (xSemaphoreTake(_mtx, pdMS_TO_TICKS(10000)) != pdTRUE)
+        return false;
 
-    // If already connecting, wait for other user to finish
+    unsigned long waitStart = millis();
     while (_connecting)
     {
+        esp_task_wdt_reset();
+        if (millis() - waitStart > 30000) // Timeout after 30s
+        {
+            xSemaphoreGive(_mtx);
+            return false;
+        }
+
+        // Release mutex while waiting
         xSemaphoreGive(_mtx);
-        vTaskDelay(pdMS_TO_TICKS(100));
-        xSemaphoreTake(_mtx, portMAX_DELAY);
+        vTaskDelay(pdMS_TO_TICKS(50));
+
+        // Re-acquire
+        if (xSemaphoreTake(_mtx, pdMS_TO_TICKS(10000)) != pdTRUE)
+            return false;
     }
 
     if (_users == 0 && WiFi.status() != WL_CONNECTED)
     {
-        _connecting = true; // claim the connection attempt
+        _connecting = true;
         WiFi.mode(WIFI_STA);
         WiFi.begin(WIFI_SSID, WIFI_PASS);
 
         unsigned long start = millis();
+
         xSemaphoreGive(_mtx);
         while (WiFi.status() != WL_CONNECTED && (millis() - start < 15000))
         {
+            esp_task_wdt_reset();
             vTaskDelay(pdMS_TO_TICKS(100));
         }
-        xSemaphoreTake(_mtx, portMAX_DELAY);
 
-        _connecting = false; // release the claim
+        // Re-acquire mutex and update _connecting
+        xSemaphoreTake(_mtx, pdMS_TO_TICKS(10000));
+        _connecting = false;
 
         if (WiFi.status() != WL_CONNECTED)
         {
@@ -58,7 +76,7 @@ bool NetworkManager::startWiFiSession()
 
 void NetworkManager::endWiFiSession()
 {
-    xSemaphoreTake(_mtx, portMAX_DELAY);
+    xSemaphoreTake(_mtx, pdMS_TO_TICKS(10000));
     if (_users > 0)
         _users--;
 
@@ -74,7 +92,7 @@ void NetworkManager::endWiFiSession()
 
 void NetworkManager::setWiFiPersistent(bool persistent)
 {
-    xSemaphoreTake(_mtx, portMAX_DELAY);
+    xSemaphoreTake(_mtx, pdMS_TO_TICKS(10000));
     _persistent = persistent;
     Serial.print("WiFi persistent mode: ");
     Serial.println(persistent ? "ENABLED" : "DISABLED");
@@ -83,7 +101,7 @@ void NetworkManager::setWiFiPersistent(bool persistent)
 
 bool NetworkManager::isWiFiPersistent() const
 {
-    xSemaphoreTake(_mtx, portMAX_DELAY);
+    xSemaphoreTake(_mtx, pdMS_TO_TICKS(10000));
     bool result = _persistent;
     xSemaphoreGive(_mtx);
     return result;
@@ -110,7 +128,10 @@ bool NetworkManager::fetchWeather()
 
     HTTPClient http;
     http.begin(url);
+    http.setTimeout(5000);
     int httpCode = http.GET();
+
+    esp_task_wdt_reset(); // Feed that dog
 
     if (httpCode <= 0)
     {
@@ -173,6 +194,7 @@ bool NetworkManager::syncRTCFromNTP()
             gotTime = true;
             break;
         }
+        esp_task_wdt_reset();
         vTaskDelay(pdMS_TO_TICKS(200));
     }
 

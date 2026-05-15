@@ -16,17 +16,21 @@
 #include <TFT_eSPI.h>            // ST7789 TFT core library
 #include <esp_task_wdt.h>        // For freeRTOS task implementation
 
+//==========
+// TODO: Change singletons into universal objects to remove the need for object injection
+//==========
 // Hardware objects
 DFRobotDFPlayerMini player;
 HardwareSerial mySoftwareSerial(1); // UART1 for ESP32 (DFPlayer)
-MFRC522 rfid(RFID_CS_PIN, RFID_RST_PIN);
+MFRC522 rfid(Pins::RFID_CS_PIN, Pins::RFID_RST_PIN);
 RTC_DS3231 rtc;
 TFT_eSPI tft = TFT_eSPI();
 
 // Logic objects
-Buttons btn(BUTTON_1_PIN, BUTTON_2_PIN, BUTTON_3_PIN, BUTTON_4_PIN); // TODO: add default pins into constructor
+Buttons btn(Pins::BUTTON_1_PIN, Pins::BUTTON_2_PIN, Pins::BUTTON_3_PIN, Pins::BUTTON_4_PIN); // TODO: add default pins into constructor
 BrightnessController brightness;                                     // uses default pins from Config.h
 Timekeeper timekeeper(rtc);
+Log LOG(timekeeper);
 NetworkManager networkManager(rtc);
 RFIDHandler rfidHandler(rfid);
 AlarmSystem alarmSystem(rtc, timekeeper, player);
@@ -59,7 +63,7 @@ HardwareStatus setupBoard()
 
     //===== TFT init =====
     tft.init();
-    tft.fillScreen(BACKGROUND_COLOR);
+    tft.fillScreen(Colors::BACKGROUND_COLOR);
 
     //===== Brightness controller init =====
     // Must come after tft.init() so the PWM pin doesn't fight the TFT setup
@@ -108,10 +112,59 @@ HardwareStatus setupBoard()
 }
 
 //========== HELPERS ==========
+// Switch to help debug reason for crash/reset
+const char *resetReasonToString(esp_reset_reason_t reason)
+{
+    switch (reason)
+    {
+    case ESP_RST_UNKNOWN:
+        return "Unknown";
+
+    case ESP_RST_POWERON:
+        return "Power-on reset";
+
+    case ESP_RST_EXT:
+        return "External pin reset";
+
+    case ESP_RST_SW:
+        return "Software reset";
+
+    case ESP_RST_PANIC:
+        return "Exception/panic reset";
+
+    case ESP_RST_INT_WDT:
+        return "Interrupt watchdog reset";
+
+    case ESP_RST_TASK_WDT:
+        return "Task watchdog reset";
+
+    case ESP_RST_WDT:
+        return "Other watchdog reset";
+
+    case ESP_RST_DEEPSLEEP:
+        return "Wake from deep sleep";
+
+    case ESP_RST_BROWNOUT:
+        return "Brownout reset";
+
+    case ESP_RST_SDIO:
+        return "SDIO reset";
+
+    default:
+        return "Invalid/reset reason not recognized";
+    }
+}
+
 void logResetReason()
 {
     esp_reset_reason_t reason = esp_reset_reason();
-    LOG.log("\nREBOOT, code %d", int(reason));
+
+    LOG.log(
+        "\nREBOOT\n"
+        "Reset code: %d\n"
+        "Reason: %s",
+        int(reason),
+        resetReasonToString(reason));
 }
 
 void waitForUserContinue()
@@ -133,7 +186,7 @@ void waitForUserContinue()
         btn.update();
         delay(10);
     }
-    tft.setTextColor(TEXT_COLOR);
+    tft.setTextColor(Colors::TEXT_COLOR);
 }
 
 // FreeRTOS tasks funciton definitions
@@ -144,12 +197,15 @@ void blynkTask(void *);
 //==================== ENTRY POINT FOR PROGRAM ====================
 void setup()
 {
-    Serial.begin(9600); // TOGO: fix serial?
+    Serial.begin(9600);
 
     setupSys();
     configTzTime(TIME_ZONE, "pool.ntp.org", "time.nist.gov");
 
     HardwareStatus hs = setupBoard();
+
+    LOG.begin();
+    logResetReason();
 
     alarmSystem.begin();
     ui.begin();
@@ -205,8 +261,8 @@ void loop()
 }
 
 //==================== FreeRTOS Tasks ====================
-#define BLYNK_DEBUG
-#define BLYNK_PRINT Serial
+// #define BLYNK_DEBUG
+// #define BLYNK_PRINT Serial
 #include <BlynkSimpleEsp32.h>
 
 // Blynk callback functions here
@@ -216,7 +272,7 @@ BLYNK_WRITE(V0)
 {
     Serial.println("BLYNK_WRITE: started");
     const char *rsp = commandInterface.handleBlynkIn(param.asStr());
-    if (rsp[0] != '\0') // Will be '/0' if the read command had the signature clock prefix: [CLK]:
+    if (rsp[0] != '\0') // Will be '\0' if the read command had the signature clock prefix: [CLK]:
     {
         // Write and notify
         Blynk.virtualWrite(V0, rsp);
@@ -228,25 +284,27 @@ BLYNK_WRITE(V0)
 // On blynk connect, flush log to log pin (V1)
 BLYNK_CONNECTED()
 {
-    Serial.println("BLYNK_CONNECTED: started.");
+    Serial.println("BLYNK_CONNECTED: started");
     Blynk.sendCmd(BLYNK_CMD_PING); // Outbound ping to prevent server-side idle timeout
     Blynk.syncVirtual(V0);         // Syncs last value from cmd stream for execution
-    while (LOG.hasLog())
+    // Log flush
+    char buf[LOG_ENTRY_SIZE];
+
+    while (LOG.pop(buf))
     {
         // Write to V1 (log stream)
-        const char *lPop = LOG.pop();
-        Blynk.virtualWrite(V1, lPop);
-        Blynk.logEvent("clock_log", lPop);
-        vTaskDelay(50); // to avoid flooding Blynk
+        Blynk.virtualWrite(V1, buf);
+        Blynk.logEvent("clock_log", buf);
+        vTaskDelay(500); // to avoid flooding Blynk
     }
 }
 
 void timeSyncTask(void *)
 {
+
     while (true)
     {
         networkManager.syncRTCFromNTP();
-
         DateTime now = timekeeper.time();
         uint32_t secondsToMidnight = (23 - now.hour()) * 3600 +
                                      (59 - now.minute()) * 60 +
@@ -262,6 +320,8 @@ void weatherTask(void *)
     {
         if (networkManager.fetchWeather())
             ui.updateWeatherDisplay(networkManager.currentWeather);
+        else
+            LOG.log("weatherTask failed to fetch weather data.");
 
         DateTime now = timekeeper.time();
         uint32_t secondsToNext = 0;
@@ -280,6 +340,8 @@ void weatherTask(void *)
 
 void blynkTask(void *)
 {
+    esp_task_wdt_add(NULL); // Watchdog safety
+
     Serial.println("BlynkTask: started");
     constexpr int MAX_RETRIES = 5;
     constexpr unsigned long BURST_MS = 20000; // 20s
@@ -305,12 +367,14 @@ void blynkTask(void *)
             {
                 Serial.printf("BlynkTask: WiFi failed. Retrying... (%d/%d)\n", i + 1, MAX_RETRIES);
             }
+            esp_task_wdt_reset();
         }
 
         // If connected, establish Blynk connection
         if (connected)
         {
             Blynk.connect(10000);
+            esp_task_wdt_reset();
             if (Blynk.connected())
             {
                 // Run Blynk
@@ -320,7 +384,8 @@ void blynkTask(void *)
                     while (networkManager.isWiFiPersistent())
                     {
                         Blynk.run();
-                        vTaskDelay(pdMS_TO_TICKS(1));
+                        esp_task_wdt_reset();
+                        vTaskDelay(pdMS_TO_TICKS(10));
                     }
                     Serial.println("BlynkTask: Persistence ended, closing WiFi.");
                 }
@@ -331,7 +396,8 @@ void blynkTask(void *)
                     while (millis() - start < BURST_MS)
                     {
                         Blynk.run();
-                        vTaskDelay(pdMS_TO_TICKS(1));
+                        esp_task_wdt_reset();
+                        vTaskDelay(pdMS_TO_TICKS(10));
                     }
                 }
                 Blynk.disconnect();
@@ -354,13 +420,12 @@ void blynkTask(void *)
             secondsToNext = (60 - now.minute()) * 60 - now.second();
         }
 
-        unsigned long waitStart = millis();
-        unsigned long waitMs = secondsToNext * 1000ULL;
-        while (millis() - waitStart < waitMs)
+        for (uint32_t i = 0; i < secondsToNext; i++)
         {
-            if (networkManager.isWiFiPersistent())
-                break;                       // Exit early if persistence requested
+            esp_task_wdt_reset();
             vTaskDelay(pdMS_TO_TICKS(1000)); // Check every second
+            if (networkManager.isWiFiPersistent())
+                break;
         }
     }
 }

@@ -27,6 +27,8 @@ class CommandInterface
     // General
     void cmdHelp(int argc, char *argv[]);
     void cmdStatus(int argc, char *argv[]);
+    void cmdTime(int argc, char *argv[]);
+    void cmdLog(int argc, char *argv[]);
 
     // Alarm
     void cmdAlarm(int argc, char *argv[]);
@@ -46,7 +48,7 @@ class CommandInterface
     static constexpr size_t CMD_IN_SIZE = 128; // max size of input buffer
     static constexpr size_t CMD_OUT_SIZE = 512;
 
-    static constexpr size_t NUM_COMMANDS = 9; // Update when new command is added!
+    static constexpr size_t NUM_COMMANDS = 11; // Update when new command is added!
 
     // Objects
     DFRobotDFPlayerMini &_player;
@@ -66,6 +68,8 @@ class CommandInterface
     const Command _commands[NUM_COMMANDS] = {
         {"help", &CommandInterface::cmdHelp, "prints this index of commands and usage"},
         {"status", &CommandInterface::cmdStatus, "status"},
+        {"time", &CommandInterface::cmdTime, "time <set> <hour> <minute> <month> <day> <year>"},
+        {"log", &CommandInterface::cmdLog, "log <log <message>> || <pop> || <size> || <printall> || <dumpbuffer> || <save> || <load>"},
         {"alarm", &CommandInterface::cmdAlarm, "alarm <set> <hour><minute> || <toggle>"},
         {"alarmtype", &CommandInterface::cmdAlarmType, "alarmtype <loud || normal || buzzer || all || int(trackNumber)> <vol>"},
         {"vol", &CommandInterface::cmdVol, "vol <0-30>"},
@@ -77,5 +81,6 @@ class CommandInterface
     // Command output buffer
     char _cmdOut[CMD_OUT_SIZE];
 
-    // Command table and handler types are in the .cpp file
+    // Helpers
+    bool parseLong(char *arg, long &out, const char *name);
 };

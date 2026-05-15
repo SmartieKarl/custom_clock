@@ -33,6 +33,12 @@ DateTime Timekeeper::time() const
     return t;
 }
 
+// Sets the time. Only a simple access layer! Does not check input validity.
+void Timekeeper::setTime(DateTime time)
+{
+    _rtc.adjust(time);
+}
+
 // Returns whether time has changed
 bool Timekeeper::tick() const
 {

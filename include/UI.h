@@ -45,8 +45,8 @@ class UI
 
     // Helpers
     void drawCenteredString(const char text[],
-                            uint16_t textColor = TEXT_COLOR,
-                            uint16_t bgColor = BACKGROUND_COLOR,
+                            uint16_t textColor = Colors::TEXT_COLOR,
+                            uint16_t bgColor = Colors::BACKGROUND_COLOR,
                             uint8_t font = 1,
                             uint8_t size = 2);
     void flashScreen(uint16_t flashColor, int flashDuration = 150);
